@@ -25,26 +25,42 @@
     "xterm-addon-fit": "^0.8.0"
   },
   "build": {
-    "appId": "com.example.openipcdashboard",
+    "appId": "com.vavol.openipcdashboard",
     "productName": "OpenIPC Dashboard",
-    "copyright": "Copyright © 2024 Your Name",
+    "copyright": "Copyright © 2024 vavol",
     "directories": {
-      "output": "dist"
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "build/icon.icns"
     },
     "linux": {
-  "target": "AppImage",
-  "icon": "build/icon.ico"
+      "target": "AppImage",
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": true
     },
     "files": [
       "**/*",
       "!dist/",
       "!*.code-workspace"
     ],
-    "asar": false
-  },
-  "publish": {
+    "asarUnpack": [
+      "**/node_modules/@ffmpeg-installer/ffmpeg/**"
+    ],
+    "publish": {
       "provider": "github",
       "owner": "Rinibr",
       "repo": "openipc-dashboard"
     }
   }
+}

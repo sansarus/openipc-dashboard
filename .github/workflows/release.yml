@@ -1,6 +1,5 @@
 name: Build & Release
 
-# Запускать этот workflow при пуше тега, который начинается с 'v' (например, v1.0.0)
 on:
   push:
     tags:
@@ -8,29 +7,35 @@ on:
 
 jobs:
   release:
-    # Запускать на последней версии Windows (так как мы собираем .exe)
-    # Для сборки под macOS или Linux нужно использовать 'macos-latest' или 'ubuntu-latest'
-    runs-on: ubuntu-latest
+    # Используем матрицу, чтобы запустить сборку на разных ОС
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    # Указываем, что сборка будет происходить на ОС из матрицы
+    runs-on: ${{ matrix.os }}
 
     steps:
-      # 1. Получаем исходный код из репозитория
       - name: Check out git repository
         uses: actions/checkout@v4
 
-      # 2. Устанавливаем Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18' # Укажите версию Node.js, которую вы используете
+          node-version: '18'
           cache: 'npm'
 
-      # 3. Устанавливаем зависимости проекта
       - name: Install dependencies
         run: npm install
+      
+      # Для Linux могут понадобиться доп. зависимости для сборки
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libarchive-tools
 
-      # 4. Собираем и публикуем приложение
       - name: Build and release
-        # Используем секретный токен, который мы создали
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: npm run dist -- --publish always
