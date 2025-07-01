@@ -1,6 +1,6 @@
 # OpenIPC Dashboard
 
-![OpenIPC Dashboard Screenshot](https://raw.githubusercontent.com/vavol/openipc-dashboard/main/build/screenshot.png) 
+![OpenIPC Dashboard Screenshot](https://raw.githubusercontent.com/Rinibr/openipc-dashboard/main/build/screenshot.png) 
 <!-- Замените URL на прямую ссылку на ваш скриншот, когда загрузите его в репозиторий -->
 
 **OpenIPC Dashboard** — это кросс-платформенное настольное приложение для удобного управления и мониторинга камер на базе прошивки OpenIPC.
@@ -22,9 +22,9 @@
 
 ## 📥 Установка
 
-Готовые установочные файлы для последней версии можно найти на странице **[Releases](https://github.com/vavol/openipc-dashboard/releases)**.
+Готовые установочные файлы для последней версии можно найти на странице **[Releases](https://github.com/Rinibr/openipc-dashboard/releases)**.
 
-<!-- Замените 'vavol/openipc-dashboard' на свой путь, если он отличается -->
+<!-- Замените 'Rinibr/openipc-dashboard' на свой путь, если он отличается -->
 
 #### Windows
 1.  Скачайте файл `OpenIPC-Dashboard-Setup-x.x.x.exe`.
@@ -61,7 +61,7 @@
 
 1.  Клонируйте репозиторий:
     ```bash
-    git clone https://github.com/vavol/openipc-dashboard.git
+    git clone https://github.com/Rinibr/openipc-dashboard.git
     cd openipc-dashboard
     ```
 
@@ -81,5 +81,6 @@
 
 ```bash
 npm run dist
+```
 
 Готовые файлы появятся в папке dist
