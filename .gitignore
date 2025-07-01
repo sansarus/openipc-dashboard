@@ -1,0 +1,24 @@
+# Папки с зависимостями и сборками
+/node_modules
+/dist
+
+# Логи npm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Файлы операционной системы
+.DS_Store
+Thumbs.db
+
+# Файлы IDE
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Файл с данными камер (содержит пароли!)
+cameras.json
