@@ -1,6 +1,6 @@
 # OpenIPC Dashboard
 
-![OpenIPC Dashboard Screenshot](https://raw.githubusercontent.com/Rinibr/openipc-dashboard/main/build/screenshot.png) 
+![OpenIPC Dashboard Screenshot](build/screenshot.png) 
 <!-- Замените URL на прямую ссылку на ваш скриншот, когда загрузите его в репозиторий -->
 
 **OpenIPC Dashboard** — это кросс-платформенное настольное приложение для удобного управления и мониторинга камер на базе прошивки OpenIPC.
