@@ -41,5 +41,10 @@
       "!*.code-workspace"
     ],
     "asar": false
+  },
+  "publish": {
+      "provider": "github",
+      "owner": "Rinibr",
+      "repo": "openipc-dashboard"
+    }
   }
-}
