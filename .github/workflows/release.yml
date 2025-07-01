@@ -10,7 +10,7 @@ jobs:
   release:
     # Запускать на последней версии Windows (так как мы собираем .exe)
     # Для сборки под macOS или Linux нужно использовать 'macos-latest' или 'ubuntu-latest'
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
 
     steps:
       # 1. Получаем исходный код из репозитория
