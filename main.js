@@ -1,7 +1,7 @@
 const { app, BrowserWindow, ipcMain, Menu, clipboard, dialog } = require('electron');
 const path = require('path');
-const fs = require('fs'); // Для синхронных проверок
-const fsPromises = require('fs').promises; // Для асинхронных операций
+const fs = require('fs');
+const fsPromises = require('fs').promises;
 const net = require('net');
 const os = require('os');
 const { spawn, exec } = require('child_process');
@@ -12,7 +12,9 @@ const dgram = require('dgram');
 const crypto = require('crypto');
 const ffmpeg = require('@ffmpeg-installer/ffmpeg');
 
-const ffmpegPath = ffmpeg.path;
+// --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
+const ffmpegPath = ffmpeg.path.replace('app.asar', 'app.asar.unpacked');
+// -------------------------
 
 let mainWindow = null;
 const streamManager = {};
@@ -20,18 +22,13 @@ const usedPorts = new Set();
 const BASE_PORT = 9001;
 
 function getDataPath() {
-    // В режиме разработки используем стандартный путь, чтобы не засорять папку проекта
     if (!app.isPackaged) {
         return app.getPath('userData');
     }
-
-    // В упакованном приложении проверяем наличие файла-маркера
     const portableMarkerPath = path.join(path.dirname(app.getPath('exe')), 'portable.txt');
     if (fs.existsSync(portableMarkerPath)) {
-        // Портативный режим: используем папку с exe
         return path.dirname(app.getPath('exe'));
     } else {
-        // Стандартный режим: используем AppData/итд
         return app.getPath('userData');
     }
 }
