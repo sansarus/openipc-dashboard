@@ -1,17 +1,19 @@
 document.addEventListener('DOMContentLoaded', () => {
     let cameras = [];
-    const GRID_SIZE = 4;
-    let gridCellsState = Array(GRID_SIZE).fill(null);
+    let gridCols = 2;
+    let gridRows = 2;
+    let gridCellsState = [];
     let fullscreenCellIndex = null;
     let editingCameraId = null;
     let settingsCameraId = null;
-    
     let initialSettings = null; 
 
-    const cameraListEl = document.getElementById('camera-list');
+    // --- UI Elements ---
     const gridContainer = document.getElementById('grid-container');
-    const addCameraBtn = document.getElementById('add-camera-btn');
-    const killAllBtn = document.getElementById('kill-all-btn');
+    const cameraListEl = document.getElementById('camera-list');
+    const layoutControls = document.getElementById('layout-controls');
+    const statusInfoEl = document.getElementById('status-info');
+    const addCameraSidebarBtn = document.getElementById('add-camera-sidebar-btn');
     
     const addModal = document.getElementById('add-camera-modal');
     const saveCameraBtn = document.getElementById('save-camera-btn');
@@ -22,10 +24,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsModalCloseBtn = document.getElementById('settings-modal-close-btn');
     const saveSettingsBtn = document.getElementById('save-settings-btn');
     const restartMajesticBtn = document.getElementById('restart-majestic-btn');
+    const killAllBtnModal = document.getElementById('kill-all-btn-modal');
     const settingsToast = document.getElementById('settings-toast');
     let toastTimeout;
 
-
+    // --- Utility Functions ---
     const openModal = (modalElement) => modalElement.classList.remove('hidden');
     const closeModal = (modalElement) => modalElement.classList.add('hidden');
 
@@ -33,466 +36,297 @@ document.addEventListener('DOMContentLoaded', () => {
         if (toastTimeout) clearTimeout(toastTimeout);
         settingsToast.textContent = message;
         settingsToast.className = 'toast-notification';
-        if (isError) {
-            settingsToast.classList.add('error');
-        }
+        if (isError) settingsToast.classList.add('error');
         settingsToast.classList.add('show');
         toastTimeout = setTimeout(() => {
             settingsToast.classList.remove('show');
         }, 3000);
     }
-
+    
     function getNestedValue(obj, path) {
         if (!path || !obj) return undefined;
         return path.split('.').reduce((acc, part) => acc && acc[part], obj);
     }
-    
+
     function setFormValue(id, value) {
         const element = document.querySelector(`[id="${id}"]`);
         if (!element || value === undefined) return;
-        
         if (element.type === 'checkbox') {
             element.checked = value === true || value === 'true';
         } else {
             element.value = value;
         }
     }
-
-    async function openSettingsModal(cameraId) {
-        settingsCameraId = cameraId;
-        const camera = cameras.find(c => c.id === cameraId);
-        if (!camera) return;
-        document.getElementById('settings-modal-title').textContent = `Настройки: ${camera.name}`;
-        settingsModal.querySelectorAll('.tab-button').forEach((btn, idx) => btn.classList.toggle('active', idx === 0));
-        settingsModal.querySelectorAll('.tab-content').forEach((content, idx) => content.classList.toggle('active', idx === 0));
-        openModal(settingsModal);
-        saveSettingsBtn.disabled = true;
-        saveSettingsBtn.textContent = 'Загрузка...';
-        
-        const settings = await window.api.getCameraSettings(camera);
-        initialSettings = settings; 
-
-        saveSettingsBtn.disabled = false;
-        saveSettingsBtn.textContent = 'Сохранить';
-        if (settings && !settings.error) {
-            // System
-            setFormValue('system.webPort', getNestedValue(settings, 'system.webPort'));
-            setFormValue('system.httpsPort', getNestedValue(settings, 'system.httpsPort'));
-            setFormValue('system.httpsCertificate', getNestedValue(settings, 'system.httpsCertificate'));
-            setFormValue('system.httpsCertificateKey', getNestedValue(settings, 'system.httpsCertificateKey'));
-            setFormValue('system.logLevel', getNestedValue(settings, 'system.logLevel'));
-            setFormValue('system.unsafe', getNestedValue(settings, 'system.unsafe'));
-            setFormValue('system.buffer', getNestedValue(settings, 'system.buffer'));
-            setFormValue('system.plugins', getNestedValue(settings, 'system.plugins'));
-            
-            // ISP
-            setFormValue('isp.drc', getNestedValue(settings, 'isp.drc'));
-            setFormValue('isp.sensorConfig', getNestedValue(settings, 'isp.sensorConfig'));
-            setFormValue('isp.iqProfile', getNestedValue(settings, 'isp.iqProfile'));
-            setFormValue('isp.antiFlicker', getNestedValue(settings, 'isp.antiFlicker'));
-            setFormValue('isp.slowShutter', getNestedValue(settings, 'isp.slowShutter'));
-            setFormValue('isp.rawMode', getNestedValue(settings, 'isp.rawMode'));
-            setFormValue('isp.blkCnt', getNestedValue(settings, 'isp.blkCnt'));
-            setFormValue('isp.memMode', getNestedValue(settings, 'isp.memMode'));
-            setFormValue('isp.dis', getNestedValue(settings, 'isp.dis'));
-            setFormValue('isp.mirror', getNestedValue(settings, 'isp.mirror'));
-            setFormValue('isp.flip', getNestedValue(settings, 'isp.flip'));
-            
-            // Image
-            setFormValue('image.mirror', getNestedValue(settings, 'image.mirror'));
-            setFormValue('image.flip', getNestedValue(settings, 'image.flip'));
-            setFormValue('image.rotate', getNestedValue(settings, 'image.rotate'));
-            setFormValue('image.contrast', getNestedValue(settings, 'image.contrast'));
-            setFormValue('image.hue', getNestedValue(settings, 'image.hue'));
-            setFormValue('image.saturation', getNestedValue(settings, 'image.saturation'));
-            setFormValue('image.luminance', getNestedValue(settings, 'image.luminance'));
-
-            // Video0
-            setFormValue('video0.enabled', getNestedValue(settings, 'video0.enabled'));
-            setFormValue('video0.size', getNestedValue(settings, 'video0.size'));
-            setFormValue('video0.codec', getNestedValue(settings, 'video0.codec'));
-            setFormValue('video0.profile', getNestedValue(settings, 'video0.profile'));
-            setFormValue('video0.fps', getNestedValue(settings, 'video0.fps'));
-            setFormValue('video0.bitrate', getNestedValue(settings, 'video0.bitrate'));
-            setFormValue('video0.rcMode', getNestedValue(settings, 'video0.rcMode'));
-            setFormValue('video0.gopSize', getNestedValue(settings, 'video0.gopSize'));
-            setFormValue('video0.gopMode', getNestedValue(settings, 'video0.gopMode'));
-            setFormValue('video0.sliceUnits', getNestedValue(settings, 'video0.sliceUnits'));
-            setFormValue('video0.crop', getNestedValue(settings, 'video0.crop'));
-            
-            // Video1
-            setFormValue('video1.enabled', getNestedValue(settings, 'video1.enabled'));
-            setFormValue('video1.size', getNestedValue(settings, 'video1.size'));
-            setFormValue('video1.codec', getNestedValue(settings, 'video1.codec'));
-            setFormValue('video1.profile', getNestedValue(settings, 'video1.profile'));
-            setFormValue('video1.fps', getNestedValue(settings, 'video1.fps'));
-            setFormValue('video1.bitrate', getNestedValue(settings, 'video1.bitrate'));
-            setFormValue('video1.rcMode', getNestedValue(settings, 'video1.rcMode'));
-            setFormValue('video1.gopSize', getNestedValue(settings, 'video1.gopSize'));
-            setFormValue('video1.gopMode', getNestedValue(settings, 'video1.gopMode'));
-            setFormValue('video1.sliceUnits', getNestedValue(settings, 'video1.sliceUnits'));
-            setFormValue('video1.crop', getNestedValue(settings, 'video1.crop'));
-            
-            // JPEG
-            setFormValue('jpeg.enabled', getNestedValue(settings, 'jpeg.enabled'));
-            setFormValue('jpeg.size', getNestedValue(settings, 'jpeg.size'));
-            setFormValue('jpeg.qfactor', getNestedValue(settings, 'jpeg.qfactor'));
-            setFormValue('jpeg.fps', getNestedValue(settings, 'jpeg.fps'));
-            setFormValue('jpeg.rtsp', getNestedValue(settings, 'jpeg.rtsp'));
-
-            // OSD
-            setFormValue('osd.enabled', getNestedValue(settings, 'osd.enabled'));
-            setFormValue('osd.template', getNestedValue(settings, 'osd.template'));
-            setFormValue('osd.font', getNestedValue(settings, 'osd.font'));
-            setFormValue('osd.size', getNestedValue(settings, 'osd.size'));
-            setFormValue('osd.posX', getNestedValue(settings, 'osd.posX'));
-            setFormValue('osd.posY', getNestedValue(settings, 'osd.posY'));
-            setFormValue('osd.privacyMasks', getNestedValue(settings, 'osd.privacyMasks'));
-            
-            // Audio
-            setFormValue('audio.enabled', getNestedValue(settings, 'audio.enabled'));
-            setFormValue('audio.codec', getNestedValue(settings, 'audio.codec'));
-            setFormValue('audio.srate', getNestedValue(settings, 'audio.srate'));
-            setFormValue('audio.volume', getNestedValue(settings, 'audio.volume'));
-            setFormValue('audio.dual', getNestedValue(settings, 'audio.dual'));
-            setFormValue('audio.outputEnabled', getNestedValue(settings, 'audio.outputEnabled'));
-            setFormValue('audio.outputVolume', getNestedValue(settings, 'audio.outputVolume'));
-            setFormValue('audio.speakerPin', getNestedValue(settings, 'audio.speakerPin'));
-            setFormValue('audio.speakerPinInvert', getNestedValue(settings, 'audio.speakerPinInvert'));
-            
-            // Night
-            setFormValue('nightMode.colorToGray', getNestedValue(settings, 'nightMode.colorToGray'));
-            setFormValue('nightMode.irCutPin1', getNestedValue(settings, 'nightMode.irCutPin1'));
-            setFormValue('nightMode.irCutSingleInvert', getNestedValue(settings, 'nightMode.irCutSingleInvert'));
-            setFormValue('nightMode.irCutPin2', getNestedValue(settings, 'nightMode.irCutPin2'));
-            setFormValue('nightMode.backlightPin', getNestedValue(settings, 'nightMode.backlightPin'));
-            setFormValue('nightMode.overrideDrc', getNestedValue(settings, 'nightMode.overrideDrc'));
-            setFormValue('nightMode.lightMonitor', getNestedValue(settings, 'nightMode.lightMonitor'));
-            setFormValue('nightMode.lightSensorPin', getNestedValue(settings, 'nightMode.lightSensorPin'));
-            setFormValue('nightMode.lightSensorInvert', getNestedValue(settings, 'nightMode.lightSensorInvert'));
-            setFormValue('nightMode.monitorDelay', getNestedValue(settings, 'nightMode.monitorDelay'));
-            setFormValue('nightMode.minThreshold', getNestedValue(settings, 'nightMode.minThreshold'));
-            setFormValue('nightMode.maxThreshold', getNestedValue(settings, 'nightMode.maxThreshold'));
-            
-            // Motion
-            setFormValue('motionDetect.enabled', getNestedValue(settings, 'motionDetect.enabled'));
-            setFormValue('motionDetect.visualize', getNestedValue(settings, 'motionDetect.visualize'));
-            setFormValue('motionDetect.debug', getNestedValue(settings, 'motionDetect.debug'));
-            setFormValue('motionDetect.roi', getNestedValue(settings, 'motionDetect.roi'));
-
-            // Record
-            setFormValue('records.enabled', getNestedValue(settings, 'records.enabled'));
-            setFormValue('records.path', getNestedValue(settings, 'records.path'));
-            setFormValue('records.split', getNestedValue(settings, 'records.split'));
-            setFormValue('records.maxUsage', getNestedValue(settings, 'records.maxUsage'));
-            setFormValue('records.substream', getNestedValue(settings, 'records.substream'));
-
-            // Outgoing
-            setFormValue('outgoing.enabled', getNestedValue(settings, 'outgoing.enabled'));
-            setFormValue('outgoing.server', getNestedValue(settings, 'outgoing.server'));
-            setFormValue('outgoing.naluSize', getNestedValue(settings, 'outgoing.naluSize'));
-            setFormValue('outgoing.substream', getNestedValue(settings, 'outgoing.substream'));
-            
-            // Other
-            setFormValue('rtsp.enabled', getNestedValue(settings, 'rtsp.enabled'));
-            setFormValue('rtsp.port', getNestedValue(settings, 'rtsp.port'));
-            setFormValue('watchdog.enabled', getNestedValue(settings, 'watchdog.enabled'));
-            setFormValue('watchdog.timeout', getNestedValue(settings, 'watchdog.timeout'));
-            setFormValue('hls.enabled', getNestedValue(settings, 'hls.enabled'));
-            setFormValue('onvif.enabled', getNestedValue(settings, 'onvif.enabled'));
-            setFormValue('ipeye.enabled', getNestedValue(settings, 'ipeye.enabled'));
-            setFormValue('ipeye.uuid', getNestedValue(settings, 'ipeye.uuid'));
-            setFormValue('netip.enabled', getNestedValue(settings, 'netip.enabled'));
-            setFormValue('netip.user', getNestedValue(settings, 'netip.user'));
-            setFormValue('netip.password', getNestedValue(settings, 'netip.password'));
-            setFormValue('netip.port', getNestedValue(settings, 'netip.port'));
-            setFormValue('netip.snapshots', getNestedValue(settings, 'netip.snapshots'));
-            setFormValue('netip.ignoreSetTime', getNestedValue(settings, 'netip.ignoreSetTime'));
-
-        } else {
-            alert('Не удалось загрузить текущие настройки: ' + (settings?.error || 'Неизвестная ошибка'));
-            closeModal(settingsModal);
-        }
-    }
-
-    async function saveSettings() {
-        if (settingsCameraId === null) return;
-        const camera = cameras.find(c => c.id === settingsCameraId);
-        if (!camera) return;
-
-        saveSettingsBtn.disabled = true;
-        saveSettingsBtn.textContent = 'Сохранение...';
-
-        const settingsData = {};
-        const inputs = settingsModal.querySelectorAll('input, select');
-        
-        inputs.forEach(input => {
-            if (!input.id) return;
-            const cgiName = '_' + input.id.replace(/\./g, '_');
-            
-            if (input.type === 'checkbox') {
-                settingsData[cgiName] = input.checked ? 'true' : 'false';
-            } else {
-                settingsData[cgiName] = input.value.trim();
-            }
+    
+    // --- Initialization ---
+    function initializeLayoutControls() {
+        const layouts = ["1x1", "2x2", "3x3", "4x4", "5x5", "6x6", "8x4"];
+        layouts.forEach(layout => {
+            const btn = document.createElement('button');
+            btn.className = 'layout-btn';
+            btn.dataset.layout = layout;
+            btn.textContent = layout.split('x').reduce((a, b) => a * b, 1);
+            btn.title = `Раскладка ${layout}`;
+            btn.onclick = () => {
+                const [cols, rows] = layout.split('x').map(Number);
+                setGridLayout(cols, rows);
+            };
+            layoutControls.appendChild(btn);
         });
-        
-        console.log("Generated CGI data:", settingsData);
-        
-        const result = await window.api.setCameraSettings({ credentials: camera, settingsData });
+    }
 
-        saveSettingsBtn.disabled = false;
-        saveSettingsBtn.textContent = 'Сохранить';
-        
-        if (result.success) {
-            showToast('Настройки успешно сохранены!');
-            initialSettings = await window.api.getCameraSettings(camera);
-        } else {
-            showToast(`Ошибка сохранения: ${result.error}`, true);
+    function updateActiveLayoutButton() {
+        const currentLayout = `${gridCols}x${gridRows}`;
+        layoutControls.querySelectorAll('.layout-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.layout === currentLayout);
+        });
+    }
+
+    async function updateSystemStats() {
+        try {
+            const stats = await window.api.getSystemStats();
+            statusInfoEl.textContent = `CPU: ${stats.cpu}% | RAM: ${stats.ram}MB`;
+        } catch (error) {
+            console.error("Failed to get system stats:", error);
+            statusInfoEl.textContent = "Stats unavailable";
         }
     }
+    
+    // --- Configuration Management ---
+    async function saveConfiguration() {
+        const config = {
+            cameras: cameras,
+            layout: { cols: gridCols, rows: gridRows },
+            gridState: gridCellsState.map(state => {
+                if (!state || !state.camera) return null;
+                return { cameraId: state.camera.id, streamId: state.streamId };
+            })
+        };
+        await window.api.saveConfiguration(config);
+    }
 
-    async function restartMajestic() {
-        if (settingsCameraId === null) return;
-        const camera = cameras.find(c => c.id === settingsCameraId);
-        if (!camera) return;
-        restartMajesticBtn.disabled = true;
-        const result = await window.api.restartMajestic(camera);
-        restartMajesticBtn.disabled = false;
-        showToast(result.success ? 'Команда на перезапуск отправлена.' : `Ошибка: ${result.error}`, !result.success);
-    }
-    
-    async function saveCamerasToFile() {
-        await window.api.saveCameras(cameras);
-    }
-    
-    async function loadCamerasFromFile() {
-        const loadedCameras = await window.api.loadCameras();
-        cameras = Array.isArray(loadedCameras) ? loadedCameras : [];
+    async function loadConfiguration() {
+        const config = await window.api.loadConfiguration();
+        cameras = Array.isArray(config.cameras) ? config.cameras : [];
+        const layout = config.layout || { cols: 2, rows: 2 };
+        
+        const savedGridState = Array.isArray(config.gridState) ? config.gridState : [];
+        gridCellsState = savedGridState.map(state => {
+            if (!state) return null;
+            const camera = cameras.find(c => c.id === state.cameraId);
+            if (!camera) return null;
+            return {
+                camera,
+                player: null,
+                streamId: state.streamId,
+                uniqueStreamIdentifier: `${camera.id}_${state.streamId}`
+            };
+        });
+
+        await setGridLayout(layout.cols, layout.rows);
         renderCameraList();
-        pollAllCamerasStatus(true);
     }
-
+    
+    // --- Grid and Camera Management ---
     function renderCameraList() {
         cameraListEl.innerHTML = '';
+        if (cameras.length === 0) {
+            cameraListEl.innerHTML = '<p style="padding: 10px; color: var(--text-secondary);">Камер нет. Нажмите "+", чтобы добавить.</p>';
+        }
         cameras.forEach(camera => {
             const li = document.createElement('li');
-            li.dataset.id = camera.id;
-            if (gridCellsState.some(state => state && state.camera.id === camera.id)) { li.classList.add('active-in-grid'); }
-            
-            li.innerHTML = `
-                <i class="status-icon" id="status-icon-${camera.id}"></i>
-                <div class="camera-info">
-                    <div class="camera-name-text">${camera.name}</div>
-                    <div class="camera-details" id="details-${camera.id}">
-                        ${camera.ip || ''}
-                    </div>
-                </div>
-                <div class="camera-temp" id="temp-${camera.id}"></div>
-                <div class="item-controls">
-                    <button class="menu-btn" title="Меню">⋮</button>
-                </div>
-            `;
+            li.className = 'camera-item';
+            li.dataset.cameraId = camera.id;
+            li.draggable = true;
+            li.innerHTML = `<i class="status-icon" id="status-icon-${camera.id}"></i><span class="camera-name">${camera.name}</span>`;
+            li.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', camera.id);
+            });
             cameraListEl.appendChild(li);
-
-            updateCameraDetails(camera.id);
         });
+        pollCameraStatuses();
     }
-
-    function updateCameraDetails(cameraId) {
-        const camera = cameras.find(c => c.id === cameraId);
-        const detailsEl = document.getElementById(`details-${camera.id}`);
-        if (camera && detailsEl) {
-            const mac = camera.mac ? ` / ${camera.mac.toUpperCase()}` : '';
-            detailsEl.textContent = `${camera.ip}${mac}`;
+    
+    async function setGridLayout(cols, rows) {
+        for (let i = 0; i < gridCols * gridRows; i++) {
+            if(gridCellsState[i]?.player) await destroyPlayerInCell(i);
         }
-    }
 
-    async function pollAllCamerasStatus(fetchFullInfo = false) {
-        for (const camera of cameras) {
-            const statusIcon = document.getElementById(`status-icon-${camera.id}`);
-            const tempEl = document.getElementById(`temp-${camera.id}`);
+        gridCols = cols;
+        gridRows = rows;
+        const totalCells = cols * rows;
 
-            if (fetchFullInfo && !camera.mac) {
-                const info = await window.api.getCameraInfo(camera);
-                if (info.success) {
-                    statusIcon?.classList.add('online');
-                    camera.mac = info.mac;
-                    camera.firmware = info.firmware;
-                    updateCameraDetails(camera.id);
-                    await saveCamerasToFile();
-                } else {
-                    statusIcon?.classList.remove('online');
-                }
-            }
-            
-            const pulse = await window.api.getCameraPulse(camera);
-            if (pulse.success) {
-                statusIcon?.classList.add('online');
-                if (tempEl) tempEl.textContent = pulse.soc_temp || '';
-            } else {
-                 statusIcon?.classList.remove('online');
-            }
-        }
-    }
-
-    async function deleteCamera(cameraId) {
-        if (confirm('Вы уверены, что хотите удалить эту камеру?')) {
-            const cellIndex = gridCellsState.findIndex(s => s && s.camera.id === cameraId);
-            if (cellIndex !== -1) await stopStreamInCell(cellIndex, true);
-            cameras = cameras.filter(c => c.id !== cameraId);
-            await saveCamerasToFile();
-            renderCameraList();
-        }
-    }
-
-    function createGridCells() {
+        gridContainer.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+        gridContainer.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
         gridContainer.innerHTML = '';
-        for (let i = 0; i < GRID_SIZE; i++) {
+        
+        if (gridCellsState.length < totalCells) {
+            gridCellsState.length = totalCells;
+        }
+
+        for (let i = 0; i < totalCells; i++) {
             const cell = document.createElement('div');
             cell.className = 'grid-cell';
             cell.dataset.cellId = i;
-            cell.innerHTML = `<span>Пусто<br>(Кликните на камеру в списке)</span>`;
             cell.addEventListener('dblclick', () => toggleFullscreen(i));
+            cell.addEventListener('dragover', (e) => { e.preventDefault(); cell.classList.add('drag-over'); });
+            cell.addEventListener('dragleave', () => cell.classList.remove('drag-over'));
+            cell.addEventListener('drop', (e) => {
+                e.preventDefault();
+                cell.classList.remove('drag-over');
+                const cameraId = parseInt(e.dataTransfer.getData('text/plain'), 10);
+                const camera = cameras.find(c => c.id === cameraId);
+                if (camera) {
+                    startStreamInCell(i, cameraId, parseInt(camera.streamId, 10) || 1);
+                }
+            });
             gridContainer.appendChild(cell);
+            
+            if (gridCellsState[i] && gridCellsState[i].camera) {
+                startStreamInCell(i, gridCellsState[i].camera.id, gridCellsState[i].streamId);
+            } else {
+                cell.innerHTML = `<span><i class="material-icons placeholder-icon">add_photo_alternate</i><br>Перетащите камеру</span>`;
+            }
         }
+        updateActiveLayoutButton();
+        saveConfiguration();
     }
-    
+
     async function startStreamInCell(cellIndex, cameraId, streamId) {
         const camera = cameras.find(c => c.id === cameraId);
         if (!camera) return;
-        if (gridCellsState[cellIndex]?.player) {
-            await stopStreamInCell(cellIndex, false);
-        }
+        if (gridCellsState[cellIndex] && gridCellsState[cellIndex].player) return;
+
         const cellElement = gridContainer.querySelector(`[data-cell-id='${cellIndex}']`);
-        cellElement.innerHTML = `<span>Подключение (${streamId === 0 ? 'HD' : 'SD'})...</span>`;
+        if (!cellElement) return;
+
+        cellElement.innerHTML = `<span>Подключение...</span>`;
         cellElement.classList.add('active');
+
+        const uniqueStreamIdentifier = `${camera.id}_${streamId}`;
+        gridCellsState[cellIndex] = { camera, streamId, player: null, uniqueStreamIdentifier };
+        saveConfiguration();
+        
         const result = await window.api.startVideoStream({ credentials: camera, streamId });
+
+        if (!gridCellsState[cellIndex] || gridCellsState[cellIndex].uniqueStreamIdentifier !== uniqueStreamIdentifier) {
+            await window.api.stopVideoStream(uniqueStreamIdentifier);
+            return;
+        }
+
         if (result.success) {
             cellElement.innerHTML = ''; 
             const canvas = document.createElement('canvas');
             cellElement.appendChild(canvas);
             const qualityLabel = streamId === 0 ? 'HD' : 'SD';
-            
             const controlsDiv = document.createElement('div');
             controlsDiv.className = 'cell-controls';
-            controlsDiv.innerHTML = `
-                <button class="audio-btn" title="Включить звук">🔇</button>
-                <button class="close-btn" title="Закрыть">×</button>
-            `;
-            
+            controlsDiv.innerHTML = `<button class="audio-btn" title="Звук"><i class="material-icons">volume_off</i></button><button class="close-btn" title="Закрыть"><i class="material-icons">close</i></button>`;
             const nameDiv = document.createElement('div');
             nameDiv.className = 'cell-name';
             nameDiv.textContent = `${camera.name} (${qualityLabel})`;
-
             const statsDiv = document.createElement('div');
             statsDiv.className = 'cell-stats';
-            statsDiv.id = `stats-${camera.id}_${streamId}`;
-            statsDiv.textContent = 'FPS: ... | ... kb/s';
-            
+            statsDiv.id = `stats-${uniqueStreamIdentifier}`;
             cellElement.appendChild(controlsDiv);
             cellElement.appendChild(nameDiv);
             cellElement.appendChild(statsDiv);
-
-            const player = new JSMpeg.Player(`ws://localhost:${result.wsPort}`, { 
-                canvas, 
-                autoplay: true, 
-                audio: true,
-                volume: 0 
-            });
-
+            const player = new JSMpeg.Player(`ws://localhost:${result.wsPort}`, { canvas, autoplay: true, audio: true, volume: 0 });
+            player.volume = 0;
             controlsDiv.querySelector('.close-btn').onclick = (e) => { 
                 e.stopPropagation(); 
                 stopStreamInCell(cellIndex, true); 
             };
-            
             const audioBtn = controlsDiv.querySelector('.audio-btn');
             audioBtn.onclick = (e) => {
                 e.stopPropagation();
-                if (player.volume === 0) {
-                    player.volume = 1;
-                    audioBtn.textContent = '🔊';
-                    audioBtn.title = 'Выключить звук';
-                } else {
-                    player.volume = 0;
-                    audioBtn.textContent = '🔇';
-                    audioBtn.title = 'Включить звук';
-                }
+                if (player.volume === 0) { player.volume = 1; audioBtn.innerHTML = '<i class="material-icons">volume_up</i>'; } 
+                else { player.volume = 0; audioBtn.innerHTML = '<i class="material-icons">volume_off</i>'; }
             };
-            
-            gridCellsState[cellIndex] = { camera, player, streamId, uniqueStreamIdentifier: `${camera.id}_${streamId}` };
-
+            gridCellsState[cellIndex].player = player;
         } else {
             cellElement.innerHTML = `<span>Ошибка: ${result.error || 'Неизвестная ошибка'}</span>`;
             cellElement.classList.remove('active');
             gridCellsState[cellIndex] = null;
+            saveConfiguration();
         }
-        renderCameraList();
-    }
-
-    function addCameraToGrid(cameraId) {
-        if (gridCellsState.some(s => s && s.camera.id === cameraId)) return;
-        const emptyCellIndex = gridCellsState.findIndex(cell => cell === null);
-        if (emptyCellIndex === -1) { alert('Все ячейки заняты!'); return; }
-        const camera = cameras.find(c => c.id === cameraId);
-        startStreamInCell(emptyCellIndex, cameraId, parseInt(camera.streamId, 10) || 1);
     }
     
-    async function stopStreamInCell(cellIndex, clearCellUI = true) {
+    async function destroyPlayerInCell(cellIndex) {
         const state = gridCellsState[cellIndex];
-        if (!state) return;
-        if (state.player) state.player.destroy();
-        const uniqueIdToStop = `${state.camera.id}_${state.streamId}`;
-        await window.api.stopVideoStream(uniqueIdToStop);
-        gridCellsState[cellIndex] = null;
+        if (!state || !state.player) return;
+        await window.api.stopVideoStream(state.uniqueStreamIdentifier);
+        state.player.destroy();
+        state.player = null;
+    }
+
+    async function stopStreamInCell(cellIndex, clearCellUI = true) {
+        await destroyPlayerInCell(cellIndex);
+        if (gridCellsState[cellIndex]) {
+            gridCellsState[cellIndex] = null;
+            saveConfiguration();
+        }
         if (clearCellUI) {
             const cellElement = gridContainer.querySelector(`[data-cell-id='${cellIndex}']`);
             if(cellElement) {
-                cellElement.innerHTML = `<span>Пусто<br>(Кликните на камеру в списке)</span>`;
+                cellElement.innerHTML = `<span><i class="material-icons placeholder-icon">add_photo_alternate</i><br>Перетащите камеру</span>`;
                 cellElement.classList.remove('active');
             }
-            renderCameraList();
         }
     }
-    
+
+    // --- ИСПРАВЛЕННАЯ ФУНКЦИЯ ---
     async function toggleFullscreen(cellIndex) {
         const currentState = gridCellsState[cellIndex];
         if (!currentState) return;
+
         const cellElement = gridContainer.querySelector(`[data-cell-id='${cellIndex}']`);
         const isEnteringFullscreen = !cellElement.classList.contains('fullscreen');
+
+        // Определяем, какой ID потока нам нужен
         const newStreamId = isEnteringFullscreen ? 0 : 1;
-        const cameraId = currentState.camera.id; 
+        // Если мы уже в нужном потоке, ничего не делаем
+        if (newStreamId === currentState.streamId) {
+            // Просто выходим из полноэкранного режима, если мы в нем
+            if (!isEnteringFullscreen) {
+                 fullscreenCellIndex = null;
+                 gridContainer.classList.remove('fullscreen-mode');
+                 cellElement.classList.remove('fullscreen');
+            }
+            return;
+        }
+
+        const cameraId = currentState.camera.id;
+
+        // 1. Останавливаем текущий плеер, но не очищаем состояние
+        await destroyPlayerInCell(cellIndex);
         
-        await stopStreamInCell(cellIndex, true); 
-        await new Promise(resolve => setTimeout(resolve, 250)); 
-    
+        // 2. Обновляем UI для полноэкранного режима
         if (isEnteringFullscreen) {
             fullscreenCellIndex = cellIndex;
-            cellElement.classList.add('fullscreen');
             gridContainer.classList.add('fullscreen-mode');
+            cellElement.classList.add('fullscreen');
         } else {
             fullscreenCellIndex = null;
-            cellElement.classList.remove('fullscreen');
             gridContainer.classList.remove('fullscreen-mode');
+            cellElement.classList.remove('fullscreen');
         }
+
+        // 3. Запускаем новый поток с новым streamId
         await startStreamInCell(cellIndex, cameraId, newStreamId);
     }
-
+    
     function handleStreamDeath(uniqueStreamIdentifier) {
-        const cellIndex = gridCellsState.findIndex(state => state && `${state.camera.id}_${state.streamId}` === uniqueStreamIdentifier);
+        const cellIndex = gridCellsState.findIndex(state => state && state.uniqueStreamIdentifier === uniqueStreamIdentifier);
         if (cellIndex !== -1) {
-            console.log(`Поток ${uniqueStreamIdentifier} умер, перезапускаем...`);
-            const cameraToRestart = gridCellsState[cellIndex].camera;
-            const streamIdToRestart = gridCellsState[cellIndex].streamId;
-            if(gridCellsState[cellIndex].player) gridCellsState[cellIndex].player.destroy();
+            const { camera, streamId } = gridCellsState[cellIndex];
             gridCellsState[cellIndex] = null;
             const cellElement = gridContainer.querySelector(`[data-cell-id='${cellIndex}']`);
             if (cellElement) {
                 cellElement.innerHTML = `<span>Потеря связи.<br>Переподключение...</span>`;
             }
-            setTimeout(() => startStreamInCell(cellIndex, cameraToRestart.id, streamIdToRestart), 5000);
+            setTimeout(() => startStreamInCell(cellIndex, camera.id, streamId), 5000);
         }
-        renderCameraList();
     }
     
     function openAddModal(cameraToEdit = null) {
@@ -500,7 +334,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const modalTitle = document.getElementById('add-modal-title');
         const camera = cameraToEdit || {};
         modalTitle.textContent = cameraToEdit ? 'Редактировать камеру' : 'Добавить новую камеру';
-        document.getElementById('new-cam-name').value = camera.name || camera.hostname || '';
+        document.getElementById('new-cam-name').value = camera.name || '';
         document.getElementById('new-cam-ip').value = camera.ip || '';
         document.getElementById('new-cam-port').value = camera.port || '554';
         document.getElementById('new-cam-user').value = camera.username || 'root';
@@ -520,52 +354,145 @@ document.addEventListener('DOMContentLoaded', () => {
             streamId: document.getElementById('new-cam-stream').value
         };
         if (!cameraData.name || !cameraData.ip) { alert('Название и IP-адрес обязательны!'); return; }
-
-        const info = await window.api.getCameraInfo(cameraData);
-        if(info.mac) {
-            cameraData.mac = info.mac;
-        }
-
         if (editingCameraId) {
             const index = cameras.findIndex(c => c.id === editingCameraId);
             cameras[index] = { ...cameras[index], ...cameraData };
         } else {
             cameras.push({ id: Date.now(), ...cameraData });
         }
-        await saveCamerasToFile();
+        await saveConfiguration();
         closeModal(addModal);
         renderCameraList();
+        if (editingCameraId) {
+            for(let i=0; i<gridCellsState.length; i++) {
+                if(gridCellsState[i]?.camera.id === editingCameraId) {
+                    const streamId = gridCellsState[i].streamId;
+                    await stopStreamInCell(i, false);
+                    await startStreamInCell(i, editingCameraId, streamId);
+                }
+            }
+        }
+    }
+
+    async function deleteCamera(cameraId) {
+        if (confirm('Вы уверены, что хотите удалить эту камеру?')) {
+            for(let i = 0; i < gridCellsState.length; i++) {
+                if(gridCellsState[i]?.camera.id === cameraId) {
+                    await stopStreamInCell(i, true);
+                }
+            }
+            cameras = cameras.filter(c => c.id !== cameraId);
+            await saveConfiguration();
+            renderCameraList();
+        }
+    }
+
+    async function openSettingsModal(cameraId) {
+        settingsCameraId = cameraId;
+        const camera = cameras.find(c => c.id === cameraId);
+        if (!camera) return;
+        document.getElementById('settings-modal-title').textContent = `Настройки: ${camera.name}`;
+        settingsModal.querySelectorAll('.tab-button').forEach((btn, idx) => btn.classList.toggle('active', idx === 0));
+        settingsModal.querySelectorAll('.tab-content').forEach((content, idx) => content.classList.toggle('active', idx === 0));
+        openModal(settingsModal);
+        saveSettingsBtn.disabled = true;
+        saveSettingsBtn.textContent = 'Загрузка...';
+        const settings = await window.api.getCameraSettings(camera);
+        initialSettings = settings; 
+        saveSettingsBtn.disabled = false;
+        saveSettingsBtn.textContent = 'Сохранить';
+        if (settings && !settings.error) {
+            Object.keys(settings).forEach(section => {
+                if (typeof settings[section] === 'object' && settings[section] !== null) {
+                    Object.keys(settings[section]).forEach(key => {
+                        setFormValue(`${section}.${key}`, settings[section][key]);
+                    });
+                }
+            });
+        } else {
+            alert('Не удалось загрузить текущие настройки: ' + (settings?.error || 'Неизвестная ошибка'));
+            closeModal(settingsModal);
+        }
+    }
+
+    async function saveSettings() {
+        if (settingsCameraId === null) return;
+        const camera = cameras.find(c => c.id === settingsCameraId);
+        if (!camera) return;
+        saveSettingsBtn.disabled = true;
+        saveSettingsBtn.textContent = 'Сохранение...';
+        const settingsData = {};
+        const inputs = settingsModal.querySelectorAll('input, select');
+        inputs.forEach(input => {
+            if (!input.id) return;
+            const cgiName = '_' + input.id.replace(/\./g, '_');
+            if (input.type === 'checkbox') {
+                settingsData[cgiName] = input.checked ? 'true' : 'false';
+            } else {
+                settingsData[cgiName] = input.value.trim();
+            }
+        });
+        const result = await window.api.setCameraSettings({ credentials: camera, settingsData });
+        saveSettingsBtn.disabled = false;
+        saveSettingsBtn.textContent = 'Сохранить';
+        if (result.success) {
+            showToast('Настройки успешно сохранены!');
+            initialSettings = await window.api.getCameraSettings(camera);
+        } else {
+            showToast(`Ошибка сохранения: ${result.error}`, true);
+        }
+    }
+
+    async function restartMajestic() {
+        if (settingsCameraId === null) return;
+        const camera = cameras.find(c => c.id === settingsCameraId);
+        if (!camera) return;
+        restartMajesticBtn.disabled = true;
+        const result = await window.api.restartMajestic(camera);
+        restartMajesticBtn.disabled = false;
+        showToast(result.success ? 'Команда на перезапуск отправлена.' : `Ошибка: ${result.error}`, !result.success);
     }
     
-    saveCameraBtn.addEventListener('click', saveCameraBtnClick);
-    
-    addCameraBtn.addEventListener('click', () => {
-        openAddModal();
-    });
+    async function pollCameraStatuses() {
+        for (const camera of cameras) {
+            const statusIcon = document.getElementById(`status-icon-${camera.id}`);
+            if (statusIcon) {
+                const pulse = await window.api.getCameraPulse(camera);
+                if (pulse.success) {
+                    statusIcon.classList.add('online');
+                } else {
+                    statusIcon.classList.remove('online');
+                }
+            }
+        }
+    }
 
-    killAllBtn.addEventListener('click', async () => {
-        if (confirm('Это принудительно завершит все процессы ffmpeg. Используйте, если потоки зависли. Продолжить?')) {
+    // --- Event Listeners ---
+    addCameraSidebarBtn.addEventListener('click', () => openAddModal());
+    saveCameraBtn.addEventListener('click', saveCameraBtnClick);
+    addModalCloseBtn.addEventListener('click', () => closeModal(addModal));
+    cancelAddBtn.addEventListener('click', () => closeModal(addModal));
+    addModal.addEventListener('click', (e) => { if (e.target === addModal) closeModal(addModal); });
+    
+    settingsModalCloseBtn.addEventListener('click', () => closeModal(settingsModal));
+    saveSettingsBtn.addEventListener('click', saveSettings);
+    restartMajesticBtn.addEventListener('click', restartMajestic);
+    killAllBtnModal.addEventListener('click', async () => {
+         if (confirm('Это принудительно завершит все процессы ffmpeg. Используйте, если потоки зависли. Продолжить?')) {
             const result = await window.api.killAllFfmpeg();
             alert(result.message);
             window.location.reload();
         }
     });
-
-    addModalCloseBtn.addEventListener('click', () => closeModal(addModal));
-    cancelAddBtn.addEventListener('click', () => closeModal(addModal));
-    addModal.addEventListener('click', (e) => { if (e.target === addModal) closeModal(addModal); });
     
-    cameraListEl.addEventListener('click', (e) => {
-        const li = e.target.closest('li');
-        if (!li) return;
-        const id = parseInt(li.dataset.id, 10);
-        
-        if (e.target.closest('.item-controls')) {
-            e.stopPropagation();
-            window.api.showCameraContextMenu(id);
-        } 
-        else if(e.target.closest('.camera-info') || e.target.closest('.status-icon')) {
-             addCameraToGrid(id);
+    gridContainer.addEventListener('contextmenu', (e) => {
+        const cell = e.target.closest('.grid-cell');
+        if (!cell) return;
+        const cellIndex = parseInt(cell.dataset.cellId, 10);
+        const state = gridCellsState[cellIndex];
+        if (state && state.camera) {
+            e.preventDefault();
+            window.api.showCameraContextMenu(state.camera.id);
         }
     });
 
@@ -580,17 +507,13 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'delete': deleteCamera(cameraId); break;
         }
     });
-    
-    settingsModalCloseBtn.addEventListener('click', () => closeModal(settingsModal));
-    saveSettingsBtn.addEventListener('click', saveSettings);
-    restartMajesticBtn.addEventListener('click', restartMajestic);
-    
+
     settingsModal.querySelectorAll('.tab-button').forEach(button => {
         button.addEventListener('click', () => {
-            settingsModal.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-            settingsModal.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            settingsModal.querySelectorAll('.tab-button, .tab-content').forEach(el => el.classList.remove('active'));
             button.classList.add('active');
-            document.getElementById(button.dataset.tab)?.classList.add('active');
+            const tabContent = document.getElementById(button.dataset.tab);
+            if (tabContent) tabContent.classList.add('active');
         });
     });
 
@@ -598,7 +521,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Escape') {
             closeModal(addModal);
             closeModal(settingsModal);
-            if (fullscreenCellIndex !== null) toggleFullscreen(fullscreenCellIndex);
+            if (fullscreenCellIndex !== null) {
+                const cellElement = gridContainer.querySelector(`.grid-cell.fullscreen`);
+                if(cellElement) toggleFullscreen(parseInt(cellElement.dataset.cellId, 10));
+            }
         }
     });
 
@@ -610,9 +536,12 @@ document.addEventListener('DOMContentLoaded', () => {
             statsElement.textContent = `FPS: ${fps} | ${bitrate}kb/s`;
         }
     });
-
-    createGridCells();
-    loadCamerasFromFile();
-    setInterval(() => pollAllCamerasStatus(false), 60000);
+    
     window.api.onStreamDied((uniqueStreamIdentifier) => handleStreamDeath(uniqueStreamIdentifier));
+
+    // --- Initial Load ---
+    initializeLayoutControls();
+    loadConfiguration();
+    setInterval(updateSystemStats, 2000);
+    setInterval(pollCameraStatuses, 60000);
 });

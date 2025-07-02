@@ -1,6 +1,6 @@
 {
   "name": "openipc-dashboard",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "App for managing OpenIPC cameras",
   "main": "main.js",
   "scripts": {
@@ -9,7 +9,7 @@
   },
   "keywords": [],
   "author": {
-    "name": "Your Name"
+    "name": "Rinibr"
   },
   "license": "ISC",
   "devDependencies": {
@@ -18,22 +18,25 @@
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/xterm": "^5.5.0",
     "axios": "^1.6.8",
     "ssh2": "^1.15.0",
-    "ws": "^8.17.1",
-    "xterm": "^5.3.0",
-    "xterm-addon-fit": "^0.8.0"
+    "ws": "^8.17.1"
   },
   "build": {
     "appId": "com.vavol.openipcdashboard",
     "productName": "OpenIPC Dashboard",
-    "copyright": "Copyright © 2024 vavol",
+    "copyright": "Copyright © 2025 Rinat Ibragimov",
     "directories": {
       "output": "dist",
       "buildResources": "build"
     },
     "win": {
-      "target": "nsis",
+      "target": [
+        "nsis",
+        "portable"
+      ],
       "icon": "build/icon.ico"
     },
     "mac": {
@@ -48,6 +51,9 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "perMachine": true
+    },
+    "portable": {
+      "artifactName": "${productName} Portable ${version}.${ext}"
     },
     "files": [
       "**/*",

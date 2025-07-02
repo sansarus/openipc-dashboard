@@ -2,6 +2,7 @@ const urlParams = new URLSearchParams(window.location.search);
 const camera = JSON.parse(urlParams.get('camera'));
 document.title = `SSH: ${camera.name} (${camera.ip})`;
 
+// Обратите внимание: Terminal и FitAddon теперь доступны глобально после подключения скриптов
 const term = new Terminal({
     cursorBlink: true,
     fontFamily: 'Consolas, "Courier New", monospace',

@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, Menu, clipboard, dialog } = require('electron');
 const path = require('path');
-const fs = require('fs').promises;
+const fs = require('fs'); // Для синхронных проверок
+const fsPromises = require('fs').promises; // Для асинхронных операций
 const net = require('net');
 const os = require('os');
 const { spawn, exec } = require('child_process');
@@ -17,7 +18,29 @@ let mainWindow = null;
 const streamManager = {};
 const usedPorts = new Set();
 const BASE_PORT = 9001;
-const dataPath = path.join(app.getPath('userData'), 'cameras.json');
+
+function getDataPath() {
+    // В режиме разработки используем стандартный путь, чтобы не засорять папку проекта
+    if (!app.isPackaged) {
+        return app.getPath('userData');
+    }
+
+    // В упакованном приложении проверяем наличие файла-маркера
+    const portableMarkerPath = path.join(path.dirname(app.getPath('exe')), 'portable.txt');
+    if (fs.existsSync(portableMarkerPath)) {
+        // Портативный режим: используем папку с exe
+        return path.dirname(app.getPath('exe'));
+    } else {
+        // Стандартный режим: используем AppData/итд
+        return app.getPath('userData');
+    }
+}
+
+const dataPathRoot = getDataPath();
+console.log(`[Config] Data path is: ${dataPathRoot}`);
+
+const configPath = path.join(dataPathRoot, 'config.json');
+const oldCamerasPath = path.join(dataPathRoot, 'cameras.json');
 let sshWindows = {};
 let fileManagerConnections = {};
 
@@ -39,7 +62,7 @@ async function getAndReserveFreePort() {
             continue;
         }
         usedPorts.add(currentPort);
-        console.log(`[PORT] Порт ${currentPort} зарезервирован.`);
+        console.log(`[PORT] Port ${currentPort} reserved.`);
         return currentPort;
     }
     return null;
@@ -47,17 +70,21 @@ async function getAndReserveFreePort() {
 
 function releasePort(port) {
     if (port) {
-        console.log(`[PORT] Порт ${port} освобожден.`);
+        console.log(`[PORT] Port ${port} released.`);
         usedPorts.delete(port);
     }
 }
 
 function createWindow() {
     mainWindow = new BrowserWindow({
-        width: 1280,
+        width: 1400,
         height: 900,
+        minWidth: 1024,
+        minHeight: 768,
+        title: "OpenIPC VMS",
         webPreferences: { preload: path.join(__dirname, 'preload.js') }
     });
+    // mainWindow.setMenu(null);
     mainWindow.loadFile('index.html');
 }
 
@@ -65,25 +92,21 @@ function createFileManagerWindow(camera) {
     const fileManagerWindow = new BrowserWindow({
         width: 1000,
         height: 700,
-        title: `Файловый менеджер: ${camera.name}`,
+        title: `File Manager: ${camera.name}`,
         webPreferences: {
             preload: path.join(__dirname, 'fm-preload.js'),
             contextIsolation: true,
             nodeIntegration: false,
         }
     });
-
     fileManagerWindow.loadFile('file-manager.html', { query: { camera: JSON.stringify(camera) } });
-
     fileManagerWindow.on('closed', () => {
         const conn = fileManagerConnections[camera.id];
         if (conn) {
             conn.end();
             delete fileManagerConnections[camera.id];
-            console.log(`[SSH] Сессия файлового менеджера для ${camera.ip} закрыта.`);
         }
     });
-
     return fileManagerWindow;
 }
 
@@ -104,7 +127,6 @@ ipcMain.handle('kill-all-ffmpeg', () => {
     return new Promise(resolve => {
         const ffmpegProcessName = path.basename(ffmpegPath);
         const command = process.platform === 'win32' ? `taskkill /IM ${ffmpegProcessName} /F` : `pkill -f ${ffmpegProcessName}`;
-        
         exec(command, (err, stdout, stderr) => {
             Object.values(streamManager).forEach(s => s.wss?.close());
             usedPorts.clear();
@@ -130,7 +152,7 @@ ipcMain.handle('start-video-stream', async (event, { credentials, streamId }) =>
         return { success: false, error: 'Не удалось найти свободный порт.' };
     }
     const wss = new WebSocket.Server({ port: wsPort });
-    wss.on('connection', (ws) => console.log(`[WSS] Клиент подключился к порту ${wsPort}`));
+    wss.on('connection', (ws) => console.log(`[WSS] Client connected to port ${wsPort}`));
     
     const ffmpegArgs = [
         '-loglevel', 'error',
@@ -149,7 +171,6 @@ ipcMain.handle('start-video-stream', async (event, { credentials, streamId }) =>
         '-threads', '0',
         '-' 
     ];
-
     const ffmpegProcess = spawn(ffmpegPath, ffmpegArgs, { detached: false, windowsHide: true });
     
     ffmpegProcess.stdout.on('data', (data) => {
@@ -166,7 +187,6 @@ ipcMain.handle('start-video-stream', async (event, { credentials, streamId }) =>
             for (let i = 0; i < statsBlocks.length - 1; i++) {
                 const block = statsBlocks[i];
                 if (!block.trim()) continue;
-
                 const lines = block.trim().split('\n');
                 const stats = {};
                 lines.forEach(line => {
@@ -175,7 +195,6 @@ ipcMain.handle('start-video-stream', async (event, { credentials, streamId }) =>
                         stats[key.trim()] = value.trim();
                     }
                 });
-
                 if (mainWindow && !mainWindow.isDestroyed() && (stats.fps || stats.bitrate)) {
                     mainWindow.webContents.send('stream-stats', { 
                         uniqueStreamIdentifier, 
@@ -189,7 +208,7 @@ ipcMain.handle('start-video-stream', async (event, { credentials, streamId }) =>
     });
 
     ffmpegProcess.on('close', (code) => {
-        console.warn(`[FFMPEG] Процесс ${uniqueStreamIdentifier} завершился с кодом ${code}`);
+        console.warn(`[FFMPEG] Process ${uniqueStreamIdentifier} exited with code ${code}`);
         if (streamManager[uniqueStreamIdentifier]) {
             streamManager[uniqueStreamIdentifier].wss.close();
             releasePort(wsPort);
@@ -206,7 +225,7 @@ ipcMain.handle('start-video-stream', async (event, { credentials, streamId }) =>
 ipcMain.handle('stop-video-stream', (event, uniqueStreamIdentifier) => {
     const stream = streamManager[uniqueStreamIdentifier];
     if (stream) {
-        console.log(`[STREAM] Ручная остановка потока ${uniqueStreamIdentifier}`);
+        console.log(`[STREAM] Stopping stream ${uniqueStreamIdentifier} manually.`);
         stream.process.removeAllListeners();
         stream.process.kill('SIGKILL');
         stream.wss.close();
@@ -217,14 +236,60 @@ ipcMain.handle('stop-video-stream', (event, uniqueStreamIdentifier) => {
     return { success: false, error: "Stream not found" };
 });
 
-ipcMain.handle('save-cameras', async (event, cameras) => {
-    try { await fs.writeFile(dataPath, JSON.stringify(cameras, null, 2)); return { success: true }; }
-    catch (e) { return { success: false, error: e.message }; }
+ipcMain.handle('save-configuration', async (event, config) => {
+    try {
+        await fsPromises.writeFile(configPath, JSON.stringify(config, null, 2));
+        return { success: true };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
 });
 
-ipcMain.handle('load-cameras', async () => {
-    try { await fs.access(dataPath); const data = await fs.readFile(dataPath, 'utf-8'); return JSON.parse(data); }
-    catch (e) { return []; }
+ipcMain.handle('load-configuration', async () => {
+    const defaultConfig = {
+        cameras: [],
+        layout: { cols: 2, rows: 2 },
+        gridState: [null, null, null, null]
+    };
+    try {
+        await fsPromises.access(configPath);
+        const data = await fsPromises.readFile(configPath, 'utf-8');
+        return JSON.parse(data);
+    } catch (e) {
+        try {
+            await fsPromises.access(oldCamerasPath);
+            console.log('Found old cameras.json, attempting migration...');
+            const oldData = await fsPromises.readFile(oldCamerasPath, 'utf-8');
+            const oldCameras = JSON.parse(oldData);
+            const newConfig = { ...defaultConfig, cameras: oldCameras };
+            await fsPromises.writeFile(configPath, JSON.stringify(newConfig, null, 2));
+            await fsPromises.rename(oldCamerasPath, `${oldCamerasPath}.bak`);
+            console.log('Migration successful: cameras.json has been migrated to config.json');
+            return newConfig;
+        } catch (migrationError) {
+            console.log('No existing config found, returning default.');
+            return defaultConfig;
+        }
+    }
+});
+
+ipcMain.handle('get-system-stats', () => {
+    const cpus = os.cpus();
+    let totalIdle = 0, totalTick = 0;
+    for(const cpu of cpus) {
+        for(let type in cpu.times) {
+            totalTick += cpu.times[type];
+        }
+        totalIdle += cpu.times.idle;
+    }
+    const idle = totalIdle / cpus.length;
+    const total = totalTick / cpus.length;
+    const usage = 100 * (1 - idle / total);
+
+    return {
+        cpu: usage.toFixed(0),
+        ram: (process.memoryUsage().heapUsed / 1024 / 1024).toFixed(0),
+    };
 });
 
 const getAxiosJsonConfig = (credentials) => ({
@@ -252,12 +317,8 @@ ipcMain.handle('set-camera-settings', async (event, { credentials, settingsData 
         const url = `http://${credentials.ip}/cgi-bin/mj-settings.cgi`;
         settingsData.action = 'update';
         const formData = new URLSearchParams(settingsData).toString();
-        
         const config = getAxiosCgiConfig(credentials);
-        config.validateStatus = function (status) {
-            return (status >= 200 && status < 300) || status === 303;
-        };
-
+        config.validateStatus = (status) => (status >= 200 && status < 300) || status === 303;
         await axios.post(url, formData, config);
         return { success: true };
     } catch (error) {
@@ -269,12 +330,8 @@ ipcMain.handle('restart-majestic', async (event, credentials) => {
     try {
         const url = `http://${credentials.ip}/cgi-bin/mj-settings.cgi`;
         const formData = new URLSearchParams({ action: 'restart' }).toString();
-        
         const config = getAxiosCgiConfig(credentials);
-        config.validateStatus = function (status) {
-            return (status >= 200 && status < 300) || status === 303;
-        };
-        
+        config.validateStatus = (status) => (status >= 200 && status < 300) || status === 303;
         await axios.post(url, formData, config);
         return { success: true };
     } catch (error) {
@@ -300,11 +357,7 @@ ipcMain.handle('get-camera-info', async (event, credentials) => {
     }
 });
 
-// --- Обработчики файлового менеджера ---
-
-ipcMain.handle('open-file-manager', (event, camera) => {
-    createFileManagerWindow(camera);
-});
+ipcMain.handle('open-file-manager', (event, camera) => createFileManagerWindow(camera));
 
 ipcMain.handle('scp-connect', (event, camera) => {
     return new Promise((resolve, reject) => {
@@ -317,15 +370,11 @@ ipcMain.handle('scp-connect', (event, camera) => {
         const conn = new Client();
         const win = BrowserWindow.fromWebContents(event.sender);
         const handleClose = () => {
-            console.log(`[SSH] Соединение для файлового менеджера ${camera.id} закрыто.`);
             delete fileManagerConnections[camera.id];
-            if (win && !win.isDestroyed()) {
-                win.webContents.send('scp-close');
-            }
+            if (win && !win.isDestroyed()) win.webContents.send('scp-close');
         };
         conn.on('ready', () => {
             fileManagerConnections[camera.id] = conn;
-            console.log(`[SSH] Сессия для файлового менеджера ${camera.ip} открыта.`);
             resolve({ success: true });
         }).on('error', (err) => {
             reject(new Error(`Connection Error: ${err.message}`));
@@ -343,22 +392,17 @@ ipcMain.handle('scp-connect', (event, camera) => {
 
 ipcMain.handle('scp-list', async (event, { cameraId, path: dirPath }) => {
     const conn = fileManagerConnections[cameraId];
-    if (!conn) throw new Error("SSH сессия не найдена или неактивна.");
-
+    if (!conn) throw new Error("SSH session not found or inactive.");
     return new Promise((resolve, reject) => {
         conn.exec(`ls -lA "${dirPath}"`, (err, stream) => {
             if (err) return reject(err);
-            let data = '';
-            let errorData = '';
+            let data = '', errorData = '';
             stream.on('data', (chunk) => data += chunk.toString('utf-8'));
             stream.stderr.on('data', (chunk) => errorData += chunk.toString('utf-8'));
-            stream.on('close', (code, signal) => {
-                if (code !== 0) {
-                   return reject(new Error(errorData || `Команда 'ls' завершилась с кодом ${code}.`));
-                }
-                const files = parseLsOutput(data);
-                resolve(files);
-            }).on('error', (err) => reject(err));
+            stream.on('close', (code) => {
+                if (code !== 0) reject(new Error(errorData || `Command 'ls' exited with code ${code}.`));
+                else resolve(parseLsOutput(data));
+            }).on('error', reject);
         });
     });
 });
@@ -369,61 +413,40 @@ function parseLsOutput(output) {
         .map(line => {
             const parts = line.trim().split(/\s+/);
             if (parts.length < 9) return null;
-            const permissions = parts[0];
-            const size = parseInt(parts[4], 10);
-            const name = parts.slice(8).join(' ');
             return {
-                name: name,
-                isDirectory: permissions.startsWith('d'),
-                size: isNaN(size) ? 0 : size,
+                name: parts.slice(8).join(' '),
+                isDirectory: parts[0].startsWith('d'),
+                size: parseInt(parts[4], 10) || 0,
             };
-        })
-        .filter(Boolean);
+        }).filter(Boolean);
 }
 
 ipcMain.handle('scp-download', async (event, { cameraId, remotePath }) => {
     const conn = fileManagerConnections[cameraId];
-    if (!conn) throw new Error("SSH сессия не найдена.");
-
-    const win = BrowserWindow.fromWebContents(event.sender);
-    const { canceled, filePath } = await dialog.showSaveDialog(win, {
+    if (!conn) throw new Error("SSH session not found.");
+    const { canceled, filePath } = await dialog.showSaveDialog(BrowserWindow.fromWebContents(event.sender), {
         defaultPath: path.basename(remotePath)
     });
-
     if (canceled || !filePath) return { success: false, canceled: true };
-    
     return new Promise((resolve, reject) => {
         conn.scp((err, scp) => {
             if (err) return reject(err);
-            scp.pull(remotePath, filePath, (err) => {
-                if (err) return reject(err);
-                resolve({ success: true });
-            });
+            scp.pull(remotePath, filePath, (err) => err ? reject(err) : resolve({ success: true }));
         });
     });
 });
 
 ipcMain.handle('scp-upload', async (event, { cameraId, remotePath: remoteDir }) => {
     const conn = fileManagerConnections[cameraId];
-    if (!conn) throw new Error("SSH сессия не найдена.");
-
-    const win = BrowserWindow.fromWebContents(event.sender);
-    const { canceled, filePaths } = await dialog.showOpenDialog(win, {
-        title: 'Выберите файл для загрузки'
-    });
-
-    if (canceled || filePaths.length === 0) return { success: false, canceled: true };
-    
+    if (!conn) throw new Error("SSH session not found.");
+    const { canceled, filePaths } = await dialog.showOpenDialog(BrowserWindow.fromWebContents(event.sender), { title: 'Select file to upload' });
+    if (canceled || !filePaths.length) return { success: false, canceled: true };
     const localPath = filePaths[0];
     const finalRemotePath = path.posix.join(remoteDir, path.basename(localPath));
-
     return new Promise((resolve, reject) => {
          conn.scp((err, scp) => {
             if (err) return reject(err);
-            scp.push(localPath, finalRemotePath, (err) => {
-                if (err) return reject(err);
-                resolve({ success: true });
-            });
+            scp.push(localPath, finalRemotePath, (err) => err ? reject(err) : resolve({ success: true }));
         });
     });
 });
@@ -431,100 +454,97 @@ ipcMain.handle('scp-upload', async (event, { cameraId, remotePath: remoteDir }) 
 const executeRemoteCommand = (cameraId, command) => {
     return new Promise((resolve, reject) => {
         const conn = fileManagerConnections[cameraId];
-        if (!conn) return reject(new Error("SSH сессия не найдена."));
-
+        if (!conn) return reject(new Error("SSH session not found."));
         conn.exec(command, (err, stream) => {
             if (err) return reject(err);
             let stderr = '';
             stream.on('close', (code) => {
-                if (code !== 0) {
-                    return reject(new Error(stderr || `Команда завершилась с кодом ${code}`));
-                }
-                resolve({ success: true });
+                if (code !== 0) reject(new Error(stderr || `Command exited with code ${code}`));
+                else resolve({ success: true });
             }).stderr.on('data', (data) => stderr += data.toString('utf-8'));
         });
     });
-}
+};
 
-ipcMain.handle('scp-mkdir', async (event, { cameraId, path }) => {
-    return executeRemoteCommand(cameraId, `mkdir "${path}"`);
-});
-
-ipcMain.handle('scp-delete-file', async (event, { cameraId, path }) => {
-    return executeRemoteCommand(cameraId, `rm "${path}"`);
-});
-
-ipcMain.handle('scp-delete-dir', async (event, { cameraId, path }) => {
-    return executeRemoteCommand(cameraId, `rmdir "${path}"`);
-});
+ipcMain.handle('scp-mkdir', async (event, { cameraId, path }) => executeRemoteCommand(cameraId, `mkdir "${path}"`));
+ipcMain.handle('scp-delete-file', async (event, { cameraId, path }) => executeRemoteCommand(cameraId, `rm "${path}"`));
+ipcMain.handle('scp-delete-dir', async (event, { cameraId, path }) => executeRemoteCommand(cameraId, `rmdir "${path}"`));
 
 ipcMain.handle('get-local-disk-list', async () => {
-    return new Promise((resolve) => {
-        if (process.platform === 'win32') {
-            exec('wmic logicaldisk get name', (err, stdout, stderr) => {
-                if (err || stderr) return resolve([os.homedir()]);
-                const disks = stdout.split('\n').slice(1).map(line => line.trim()).filter(line => line.length > 0).map(disk => `${disk}\\`);
-                resolve(disks.length > 0 ? disks : [os.homedir()]);
+    if (process.platform === 'win32') {
+        return new Promise(resolve => {
+            exec('wmic logicaldisk get name', (err, stdout) => {
+                if (err) return resolve([os.homedir()]);
+                const disks = stdout.split('\n').slice(1).map(d => d.trim()).filter(Boolean).map(d => `${d}\\`);
+                resolve(disks.length ? disks : [os.homedir()]);
             });
-        } else {
-            resolve(['/']);
-        }
-    });
+        });
+    }
+    return ['/'];
 });
 
 ipcMain.handle('list-local-files', async (event, dirPath) => {
     try {
-        const fileNames = await fs.readdir(dirPath, { withFileTypes: true });
+        const dirents = await fsPromises.readdir(dirPath, { withFileTypes: true });
         const files = await Promise.all(
-            fileNames.map(async (dirent) => {
+            dirents.map(async (dirent) => {
                 try {
-                    const fullPath = path.join(dirPath, dirent.name);
-                    const stats = await fs.stat(fullPath);
+                    const stats = await fsPromises.stat(path.join(dirPath, dirent.name));
                     return { name: dirent.name, isDirectory: dirent.isDirectory(), size: stats.size };
-                } catch {
-                    return null;
-                }
+                } catch { return null; }
             })
         );
         return files.filter(Boolean);
     } catch (error) {
-        throw new Error(`Ошибка чтения локальной директории: ${error.message}`);
+        throw new Error(`Error reading local directory: ${error.message}`);
     }
 });
 
-ipcMain.handle('clipboardRead', () => {
-    return clipboard.readText();
-});
-ipcMain.handle('clipboardWrite', (event, text) => {
-    clipboard.writeText(text);
-});
+ipcMain.handle('clipboardRead', () => clipboard.readText());
+ipcMain.handle('clipboardWrite', (event, text) => clipboard.writeText(text));
 
 ipcMain.handle('open-ssh-terminal', (event, camera) => {
-    if (sshWindows[camera.id]) {
-        if (!sshWindows[camera.id].isDestroyed()) {
-            sshWindows[camera.id].win.focus();
-        }
+    if (sshWindows[camera.id] && !sshWindows[camera.id].win.isDestroyed()) {
+        sshWindows[camera.id].win.focus();
         return;
     }
     const sshWindow = new BrowserWindow({
-        width: 800,
-        height: 600,
-        title: `SSH-Терминал: ${camera.name}`,
-        webPreferences: {
-            preload: path.join(__dirname, 'terminal-preload.js'),
-            contextIsolation: true,
-            nodeIntegration: false,
-        }
+        width: 800, height: 600,
+        title: `SSH Terminal: ${camera.name}`,
+        webPreferences: { preload: path.join(__dirname, 'terminal-preload.js') }
     });
     sshWindow.loadFile('terminal.html', { query: { camera: JSON.stringify(camera) } });
     
     const conn = new Client();
     sshWindows[camera.id] = { win: sshWindow, conn };
-    conn.on('ready', () => { if (!sshWindow.isDestroyed()) { sshWindow.webContents.send('ssh-status', { connected: true }); } conn.shell((err, stream) => { if (err) { if (!sshWindow.isDestroyed()) { sshWindow.webContents.send('ssh-data', `\r\n*** SSH SHELL ERROR: ${err.message} ***\r\n`); } return; } stream.on('data', (data) => { if (!sshWindow.isDestroyed()) { sshWindow.webContents.send('ssh-data', data.toString('utf8')); } }); ipcMain.on(`ssh-input-${camera.id}`, (event, data) => stream.write(data)); stream.on('close', () => conn.end()); }); }).on('error', (err) => { if (!sshWindow.isDestroyed()) { sshWindow.webContents.send('ssh-data', `\r\n*** SSH CONNECTION ERROR: ${err.message} ***\r\n`); } }).on('close', () => { if (!sshWindow.isDestroyed()) { sshWindow.webContents.send('ssh-status', { connected: false, message: '\r\nСоединение закрыто.' }); } ipcMain.removeAllListeners(`ssh-input-${camera.id}`); }).connect({ host: camera.ip, port: 22, username: camera.username, password: camera.password });
-    sshWindow.on('closed', () => { conn.end(); delete sshWindows[camera.id]; });
+    conn.on('ready', () => {
+        if (sshWindow.isDestroyed()) return;
+        sshWindow.webContents.send('ssh-status', { connected: true });
+        conn.shell((err, stream) => {
+            if (err) {
+                if (!sshWindow.isDestroyed()) sshWindow.webContents.send('ssh-data', `\r\n*** SSH SHELL ERROR: ${err.message} ***\r\n`);
+                return;
+            }
+            stream.on('data', (data) => { if (!sshWindow.isDestroyed()) sshWindow.webContents.send('ssh-data', data.toString('utf8')); });
+            ipcMain.on(`ssh-input-${camera.id}`, (event, data) => stream.write(data));
+            stream.on('close', () => conn.end());
+        });
+    }).on('error', (err) => {
+        if (!sshWindow.isDestroyed()) sshWindow.webContents.send('ssh-data', `\r\n*** SSH CONNECTION ERROR: ${err.message} ***\r\n`);
+    }).on('close', () => {
+        if (!sshWindow.isDestroyed()) sshWindow.webContents.send('ssh-status', { connected: false, message: '\r\nConnection closed.' });
+        ipcMain.removeAllListeners(`ssh-input-${camera.id}`);
+    }).connect({ host: camera.ip, port: 22, username: camera.username, password: camera.password });
+    sshWindow.on('closed', () => {
+        conn.end();
+        delete sshWindows[camera.id];
+    });
 });
 
 app.whenReady().then(createWindow);
-app.on('will-quit', () => { const command = process.platform === 'win32' ? `taskkill /IM ${path.basename(ffmpegPath)} /F` : `pkill -f ${path.basename(ffmpegPath)}`; exec(command); });
-app.on('window-all-closed', () => { if (process.platform !== 'darwin') { app.quit(); } });
-app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) { createWindow(); } });
+app.on('will-quit', () => {
+    const command = process.platform === 'win32' ? `taskkill /IM ${path.basename(ffmpegPath)} /F` : `pkill -f ${path.basename(ffmpegPath)}`;
+    exec(command);
+});
+app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });

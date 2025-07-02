@@ -2,76 +2,106 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" 
-          content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://localhost:*; img-src 'self' data:;">
-    <title>OpenIPC Dashboard</title>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' ws://localhost:*; img-src 'self' data:;">
+    <title>OpenIPC VMS</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; background-color: #f0f2f5; display: flex; height: 100vh; overflow: hidden; }
-        .sidebar { width: 250px; background-color: #343a40; color: white; padding: 20px; display: flex; flex-direction: column; flex-shrink: 0; }
-        .sidebar h2 { margin-top: 0; border-bottom: 1px solid #495057; padding-bottom: 10px; }
-        .camera-list { list-style: none; padding: 0; margin: 0; flex-grow: 1; overflow-y: auto; }
-        .camera-list li { display: flex; align-items: center; padding: 10px; border-radius: 5px; margin-bottom: 5px; word-break: break-all; }
-        .camera-list li > .camera-info { cursor: pointer; flex-grow: 1; }
-        .camera-list li:hover { background-color: #495057; }
-        .camera-list li.active-in-grid { background-color: #007bff; color: white; }
-        .status-icon { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 10px; background-color: #6c757d; flex-shrink: 0; transition: background-color 0.3s; }
-        .status-icon.online { background-color: #28a745; }
-        .camera-name-text { font-weight: 500; }
-        .camera-details { font-size: 11px; color: #adb5bd; margin-top: 3px; }
-        .camera-temp { font-size: 12px; color: #adb5bd; margin-left: auto; padding-left: 10px; white-space: nowrap; }
-        .item-controls { display: flex; gap: 5px; align-self: flex-start; }
-        .item-controls button { background: none; border: none; color: #adb5bd; cursor: pointer; padding: 2px 4px; font-size: 14px; }
-        .item-controls button:hover { color: white; }
-        .menu-btn { font-size: 20px; line-height: 1; padding: 0 8px; }
-        .sidebar button { width: 100%; padding: 10px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; margin-top: 10px; }
-        #add-camera-btn { background-color: #28a745; color: white; }
-        #kill-all-btn { background-color: #dc3545; color: white; }
-        .main-content { flex-grow: 1; padding: 20px; display: flex; position: relative; }
-        .hidden { display: none !important; }
-        #grid-container { width: 100%; height: 100%; display: grid; grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); gap: 20px; }
-        .grid-cell { position: relative; background-color: #000; border-radius: 8px; display: flex; justify-content: center; align-items: center; color: #6c757d; font-size: 1.2em; border: 2px dashed #495057; cursor: pointer; text-align: center; }
-        .grid-cell canvas { width: 100%; height: 100%; object-fit: contain; border-radius: 8px; }
-        .grid-cell.active { border-style: solid; border-color: #007bff; }
-        .cell-controls { position: absolute; top: 5px; right: 5px; z-index: 10; display: flex; gap: 5px; }
-        .cell-controls button { width: 24px; height: 24px; background-color: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; cursor: pointer; font-size: 16px; line-height: 24px; text-align: center; padding: 0; }
-        .cell-name { position: absolute; bottom: 5px; right: 10px; background-color: rgba(0,0,0,0.5); color: white; padding: 2px 8px; border-radius: 4px; font-size: 14px; z-index: 16;}
-        .cell-stats { position: absolute; bottom: 5px; left: 10px; background-color: rgba(0,0,0,0.5); color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 13px; font-family: monospace; pointer-events: none; z-index: 15; }
-        .grid-cell.fullscreen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 50; border: none; border-radius: 0; }
+        :root {
+            --bg-darker: #2d333b; --bg-dark: #3c3f41; --bg-medium: #4e5254; --bg-light: #616466;
+            --text-main: #f0f2f5; --text-secondary: #adb5bd;
+            --accent-color: #0d6efd; --border-color: #2b2b2b; --danger-color: #f85149;
+            --header-height: 40px; --toolbar-height: 40px; --sidebar-width: 250px;
+        }
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; background-color: var(--bg-darker); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        
+        .header { height: var(--header-height); background-color: var(--bg-dark); display: flex; align-items: center; padding: 0 15px; border-bottom: 1px solid var(--border-color); flex-shrink: 0; }
+        .header .logo { font-size: 1.2em; font-weight: bold; color: var(--text-main); }
+        .header .tabs { margin-left: 30px; height: 100%; display: flex; }
+        .header .tab { padding: 0 15px; background: none; border: none; border-bottom: 3px solid transparent; color: var(--text-secondary); cursor: pointer; height: 100%; display: flex; align-items: center; }
+        .header .tab.active { color: var(--text-main); border-bottom-color: var(--accent-color); }
+        
+        .main-container { display: flex; flex-grow: 1; overflow: hidden; }
+        .view-container { flex-grow: 1; padding: 10px; }
+        #grid-container { width: 100%; height: 100%; display: grid; grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); gap: 10px; }
+        .grid-cell { position: relative; background-color: var(--bg-dark); border-radius: 4px; display: flex; flex-direction: column; justify-content: center; align-items: center; color: var(--text-secondary); border: 1px solid var(--border-color); cursor: default; text-align: center; transition: background-color 0.2s, border-color 0.2s; }
+        .grid-cell.drag-over { border: 2px dashed var(--accent-color); background-color: var(--bg-light); }
+        .grid-cell canvas { width: 100%; height: 100%; object-fit: contain; border-radius: 4px; }
+        .grid-cell.active { border: 2px solid var(--accent-color); }
+        .cell-controls { position: absolute; top: 5px; right: 5px; background-color: rgba(0,0,0,0.6); border-radius: 4px; z-index: 10; display: flex; gap: 5px; pointer-events: all; padding: 2px 4px; }
+        .cell-controls button { background: none; border: none; color: white; cursor: pointer; font-size: 16px; padding: 0; display: flex; align-items: center; }
+        .cell-name { position: absolute; bottom: 5px; right: 10px; background-color: rgba(0,0,0,0.6); color: white; padding: 3px 8px; border-radius: 4px; font-size: 13px; z-index: 10; pointer-events: none; }
+        .cell-stats { position: absolute; bottom: 5px; left: 10px; background-color: rgba(0,0,0,0.6); color: #fff; padding: 3px 8px; border-radius: 4px; font-size: 13px; font-family: monospace; pointer-events: none; }
+        .grid-cell.fullscreen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 50; border: none; border-radius: 0; padding: 0; gap: 0; background-color: #000; }
         #grid-container.fullscreen-mode .grid-cell:not(.fullscreen) { display: none; }
+        .grid-cell .placeholder-icon { font-size: 48px; margin-bottom: 10px; }
+
+        .sidebar { width: var(--sidebar-width); background-color: var(--bg-dark); border-left: 1px solid var(--border-color); display: flex; flex-direction: column; }
+        .sidebar-header { padding: 10px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .sidebar-header h3 { margin: 0; font-size: 1em; }
+        .sidebar-header .icon-button { background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 4px; border-radius: 50%; display: flex; align-items: center; }
+        .sidebar-header .icon-button:hover { color: var(--text-main); background-color: var(--bg-light); }
+        #camera-list { list-style: none; padding: 10px; margin: 0; flex-grow: 1; overflow-y: auto; }
+        .camera-item { padding: 8px; border-radius: 4px; margin-bottom: 5px; cursor: grab; display: flex; align-items: center; gap: 8px; }
+        .camera-item:hover { background-color: var(--bg-light); }
+        .status-icon { width: 10px; height: 10px; border-radius: 50%; background-color: #6c757d; flex-shrink: 0; }
+        .status-icon.online { background-color: #28a745; }
+        
+        .bottom-toolbar { height: var(--toolbar-height); background-color: var(--bg-dark); border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 15px; flex-shrink: 0; }
+        .toolbar-group { display: flex; align-items: center; gap: 5px; }
+        .toolbar-group .layout-btn { background-color: var(--bg-light); border: 1px solid var(--border-color); color: var(--text-secondary); padding: 5px; border-radius: 4px; cursor: pointer; min-width: 30px; text-align: center; }
+        .toolbar-group .layout-btn:hover, .toolbar-group .layout-btn.active { background-color: var(--accent-color); color: white; border-color: var(--accent-color); }
+        .status-info { font-size: 12px; color: var(--text-secondary); }
+
         .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
         .modal-content { position: relative; background: white; padding: 20px 30px 30px 30px; border-radius: 8px; width: 500px; color: #333; }
-        .modal-content.large { width: 700px; }
+        .modal-content.large { width: 700px; max-height: 90vh; display: flex; flex-direction: column; }
+        .modal-body { overflow-y: auto; flex-grow: 1; padding-right: 10px;}
+        .modal-footer { margin-top: auto; padding-top: 20px; border-top: 1px solid #eee; display: flex; gap: 10px; }
         .modal-close-btn { position: absolute; top: 10px; right: 15px; font-size: 28px; font-weight: bold; color: #aaa; cursor: pointer; line-height: 1; user-select: none; }
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; align-items: center; padding-top: 15px; }
-        .form-grid.simple { grid-template-columns: 100px 1fr; }
+        .form-grid.simple { grid-template-columns: 120px 1fr; }
         .form-grid label, .form-grid span { font-weight: 500; }
         .form-grid .full-width { grid-column: 1 / -1; }
         .form-grid input, .form-grid select, .form-grid button { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; width: 100%; box-sizing: border-box; }
-        .form-grid button:disabled, .form-buttons button:disabled { background-color: #ccc; cursor: not-allowed; }
         .form-buttons { grid-column: 1 / -1; display: flex; gap: 10px; margin-top: 20px; }
         .tabs { border-bottom: 2px solid #dee2e6; display: flex; flex-wrap: wrap; margin-bottom: 15px; }
         .tab-button { background: none; border: none; padding: 10px 15px; cursor: pointer; font-size: 14px; color: #6c757d; border-bottom: 2px solid transparent; margin-bottom: -2px; }
         .tab-button.active { color: #007bff; border-color: #007bff; }
         .tab-content { display: none; }
-        .tab-content.active { display: block; max-height: 60vh; overflow-y: auto; padding-right: 10px; }
+        .tab-content.active { display: block; }
         h3 { border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-top: 25px; margin-bottom: 15px; font-size: 1.1em; }
         h3:first-child { margin-top: 0; }
-        .toast-notification { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: #28a745; color: white; padding: 10px 20px; border-radius: 5px; z-index: 2000; opacity: 0; transition: opacity 0.5s, transform 0.5s; visibility: hidden; pointer-events: none; }
-        .toast-notification.show { opacity: 1; transform: translate(-50%, -10px); visibility: visible; }
-        .toast-notification.error { background-color: #dc3545; }
+        .toast-notification { position: fixed; bottom: 60px; left: 50%; transform: translateX(-50%); background-color: #28a745; color: white; padding: 10px 20px; border-radius: 5px; z-index: 2000; opacity: 0; transition: opacity 0.5s; visibility: hidden; pointer-events: none; }
+        .toast-notification.show { opacity: 1; visibility: visible; }
+        .toast-notification.error { background-color: var(--danger-color); }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
-    <div class="sidebar">
-        <h2>Камеры</h2>
-        <ul id="camera-list" class="camera-list"></ul>
-        <button id="add-camera-btn">Добавить камеру</button>
-        <button id="kill-all-btn">Аварийный сброс потоков</button>
+    <div class="header">
+        <div class="logo">OpenIPC VMS</div>
+        <div class="tabs">
+            <button class="tab active">Монитор</button>
+        </div>
     </div>
-    <div class="main-content">
-        <div id="grid-container"></div>
+    <div class="main-container">
+        <div class="view-container">
+            <div id="grid-container"></div>
+        </div>
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h3>Устройства</h3>
+                <button id="add-camera-sidebar-btn" class="icon-button" title="Добавить новую камеру"><i class="material-icons">add_circle_outline</i></button>
+            </div>
+            <ul id="camera-list"></ul>
+        </div>
     </div>
-    
+    <div class="bottom-toolbar">
+        <div class="status-info" id="status-info">CPU: -- | RAM: --</div>
+        <div class="toolbar-group" id="layout-controls"></div>
+    </div>
+
     <div id="add-camera-modal" class="modal-backdrop hidden">
         <div class="modal-content">
             <span id="add-modal-close-btn" class="modal-close-btn">×</span>
@@ -82,10 +112,10 @@
                 <b>RTSP Порт:</b> <input type="number" id="new-cam-port" placeholder="554">
                 <b>Логин:</b>     <input type="text" id="new-cam-user" value="root">
                 <b>Пароль:</b>    <input type="password" id="new-cam-pass">
-                <b>Поток:</b>
+                <b>Поток по умолч:</b>
                 <select id="new-cam-stream">
-                    <option value="0">Основной (Высокое)</option>
-                    <option value="1">Дополнительный (Низкое)</option>
+                    <option value="0">Основной (HD)</option>
+                    <option value="1" selected>Дополнительный (SD)</option>
                 </select>
                 <b></b>
                 <div class="form-buttons">
@@ -100,272 +130,225 @@
         <div class="modal-content large">
             <span id="settings-modal-close-btn" class="modal-close-btn">×</span>
             <h2 id="settings-modal-title">Настройки камеры</h2>
-            <div class="tabs">
-                <button class="tab-button active" data-tab="tab-system">System</button>
-                <button class="tab-button" data-tab="tab-isp">ISP</button>
-                <button class="tab-button" data-tab="tab-image">Image</button>
-                <button class="tab-button" data-tab="tab-video0">Video0</button>
-                <button class="tab-button" data-tab="tab-video1">Video1</button>
-                <button class="tab-button" data-tab="tab-jpeg">JPEG</button>
-                <button class="tab-button" data-tab="tab-osd">OSD</button>
-                <button class="tab-button" data-tab="tab-audio">Audio</button>
-                <button class="tab-button" data-tab="tab-rtsp">RTSP</button>
-                <button class="tab-button" data-tab="tab-nightMode">Night</button>
-                <button class="tab-button" data-tab="tab-motionDetect">Motion</button>
-                <button class="tab-button" data-tab="tab-records">Record</button>
-                <button class="tab-button" data-tab="tab-outgoing">Outgoing</button>
-                <button class="tab-button" data-tab="tab-watchdog">Watchdog</button>
-                <button class="tab-button" data-tab="tab-hls">HLS</button>
-                <button class="tab-button" data-tab="tab-onvif">ONVIF</button>
-                <button class="tab-button" data-tab="tab-ipeye">IPEYE</button>
-                <button class="tab-button" data-tab="tab-netip">NETIP</button>
-            </div>
-            <div id="tab-system" class="tab-content active">
-                <h3>System</h3>
-                <div class="form-grid">
-                    <span>HTTP порт</span><input type="number" id="system.webPort" min="1" max="65535">
-                    <span>HTTPS порт</span><input type="number" id="system.httpsPort" min="1" max="65535">
-                    <span>Путь к SSL сертификату</span><input type="text" id="system.httpsCertificate" class="full-width">
-                    <span>Путь к SSL ключу</span><input type="text" id="system.httpsCertificateKey" class="full-width">
-                    <span>Уровень логов</span>
-                    <select id="system.logLevel">
-                        <option value="verbose">Verbose</option>
-                        <option value="debug">Debug</option>
-                        <option value="info">Info</option>
-                        <option value="warning">Warning</option>
-                        <option value="error">Error</option>
-                    </select>
-                    <span>Отключить авторизацию</span><input type="checkbox" id="system.unsafe">
-                    <span>Макс. размер буфера (KB)</span><input type="number" id="system.buffer">
-                    <span>Включить плагины</span><input type="checkbox" id="system.plugins">
+            <div class="modal-body">
+                <div class="tabs">
+                    <button class="tab-button active" data-tab="tab-system">System</button>
+                    <button class="tab-button" data-tab="tab-isp">ISP</button>
+                    <button class="tab-button" data-tab="tab-image">Image</button>
+                    <button class="tab-button" data-tab="tab-video0">Video0</button>
+                    <button class="tab-button" data-tab="tab-video1">Video1</button>
+                    <button class="tab-button" data-tab="tab-jpeg">JPEG</button>
+                    <button class="tab-button" data-tab="tab-osd">OSD</button>
+                    <button class="tab-button" data-tab="tab-audio">Audio</button>
+                    <button class="tab-button" data-tab="tab-rtsp">RTSP</button>
+                    <button class="tab-button" data-tab="tab-nightMode">Night</button>
+                    <button class="tab-button" data-tab="tab-motionDetect">Motion</button>
+                    <button class="tab-button" data-tab="tab-records">Record</button>
+                    <button class="tab-button" data-tab="tab-outgoing">Outgoing</button>
+                    <button class="tab-button" data-tab="tab-watchdog">Watchdog</button>
+                    <button class="tab-button" data-tab="tab-hls">HLS</button>
+                    <button class="tab-button" data-tab="tab-onvif">ONVIF</button>
+                    <button class="tab-button" data-tab="tab-ipeye">IPEYE</button>
+                    <button class="tab-button" data-tab="tab-netip">NETIP</button>
+                </div>
+                <div id="tab-system" class="tab-content active">
+                    <h3>System</h3>
+                    <div class="form-grid">
+                        <span>HTTP порт</span><input type="number" id="system.webPort" min="1" max="65535">
+                        <span>HTTPS порт</span><input type="number" id="system.httpsPort" min="1" max="65535">
+                        <span class="full-width">Путь к SSL сертификату</span><input type="text" id="system.httpsCertificate" class="full-width">
+                        <span class="full-width">Путь к SSL ключу</span><input type="text" id="system.httpsCertificateKey" class="full-width">
+                        <span>Уровень логов</span>
+                        <select id="system.logLevel">
+                            <option value="verbose">Verbose</option>
+                            <option value="debug">Debug</option>
+                            <option value="info">Info</option>
+                            <option value="warning">Warning</option>
+                            <option value="error">Error</option>
+                        </select>
+                        <span>Отключить авторизацию</span><input type="checkbox" id="system.unsafe">
+                        <span>Макс. размер буфера (KB)</span><input type="number" id="system.buffer">
+                        <span>Включить плагины</span><input type="checkbox" id="system.plugins">
+                    </div>
+                </div>
+                <div id="tab-isp" class="tab-content">
+                    <h3>ISP (Процессор изображений)</h3>
+                    <div class="form-grid">
+                        <span>Сжатие динам. диапазона</span><input type="number" id="isp.drc">
+                        <span class="full-width">Конфиг. файл сенсора</span><input type="text" id="isp.sensorConfig" class="full-width">
+                        <span class="full-width">Профиль кач-ва изобр.</span><input type="text" id="isp.iqProfile" class="full-width">
+                        <span>Подавление мерцания</span>
+                        <select id="isp.antiFlicker"><option value="disabled">Disabled</option><option value="50">50 Hz</option><option value="60">60 Hz</option></select>
+                        <span>Медленный затвор</span>
+                        <select id="isp.slowShutter"><option value="disabled">Disabled</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select>
+                        <span>Режим RAW</span>
+                        <select id="isp.rawMode"><option value="none">None</option><option value="slow">Slow</option><option value="fast">Fast</option></select>
+                        <span>Блоки памяти для кодера</span><input type="number" id="isp.blkCnt">
+                        <span>Режим памяти</span>
+                        <select id="isp.memMode"><option value="normal">Normal</option><option value="reduction">Reduction</option></select>
+                        <span>Цифр. стаб. изображения</span><input type="checkbox" id="isp.dis">
+                        <span>Зеркало (ISP)</span><input type="checkbox" id="isp.mirror">
+                        <span>Переворот (ISP)</span><input type="checkbox" id="isp.flip">
+                    </div>
+                </div>
+                <div id="tab-image" class="tab-content">
+                    <h3>Image (Постобработка)</h3>
+                    <div class="form-grid">
+                        <span>Зеркало</span><input type="checkbox" id="image.mirror">
+                        <span>Переворот</span><input type="checkbox" id="image.flip">
+                        <span>Поворот</span><select id="image.rotate"><option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select>
+                        <span>Контраст</span><input type="number" id="image.contrast" min="0" max="100">
+                        <span>Оттенок</span><input type="number" id="image.hue" min="0" max="100">
+                        <span>Насыщенность</span><input type="number" id="image.saturation" min="0" max="100">
+                        <span>Яркость</span><input type="number" id="image.luminance" min="0" max="100">
+                    </div>
+                </div>
+                <div id="tab-video0" class="tab-content">
+                    <h3>Основной поток</h3>
+                    <div class="form-grid">
+                        <span>Включен</span><input type="checkbox" id="video0.enabled">
+                        <span>Разрешение</span><input type="text" id="video0.size" placeholder="1920x1080">
+                        <span>Кодек</span><select id="video0.codec"><option value="h264">H.264</option><option value="h265">H.265</option></select>
+                        <span>Профиль</span><select id="video0.profile"><option value="base">Base</option><option value="main">Main</option><option value="high">High</option></select>
+                        <span>Частота кадров</span><input type="number" id="video0.fps">
+                        <span>Битрейт (kbps)</span><input type="number" id="video0.bitrate">
+                        <span>Режим битрейта</span><select id="video0.rcMode"><option value="cbr">CBR</option><option value="vbr">VBR</option><option value="avbr">AVBR</option></select>
+                        <span>Интервал I-frame (сек)</span><input type="text" id="video0.gopSize">
+                        <span>Режим GOP</span><select id="video0.gopMode"><option value="normal">Normal</option><option value="dual">Dual</option><option value="smart">Smart</option></select>
+                        <span>Единицы среза</span><input type="number" id="video0.sliceUnits">
+                        <span class="full-width">Обрезка (crop)</span><input type="text" id="video0.crop" placeholder="w:h:x:y" class="full-width">
+                    </div>
+                </div>
+                <div id="tab-video1" class="tab-content">
+                    <h3>Дополнительный поток</h3>
+                    <div class="form-grid">
+                        <span>Включен</span><input type="checkbox" id="video1.enabled">
+                        <span>Разрешение</span><input type="text" id="video1.size" placeholder="704x576">
+                        <span>Кодек</span><select id="video1.codec"><option value="h264">H.264</option><option value="h265">H.265</option></select>
+                        <span>Профиль</span><select id="video1.profile"><option value="base">Base</option><option value="main">Main</option><option value="high">High</option></select>
+                        <span>Частота кадров</span><input type="number" id="video1.fps">
+                        <span>Битрейт (kbps)</span><input type="number" id="video1.bitrate">
+                        <span>Режим битрейта</span><select id="video1.rcMode"><option value="cbr">CBR</option><option value="vbr">VBR</option><option value="avbr">AVBR</option></select>
+                        <span>Интервал I-frame (сек)</span><input type="text" id="video1.gopSize">
+                        <span>Режим GOP</span><select id="video1.gopMode"><option value="normal">Normal</option><option value="dual">Dual</option><option value="smart">Smart</option></select>
+                        <span>Единицы среза</span><input type="number" id="video1.sliceUnits">
+                        <span class="full-width">Обрезка (crop)</span><input type="text" id="video1.crop" placeholder="w:h:x:y" class="full-width">
+                    </div>
+                </div>
+                <div id="tab-jpeg" class="tab-content">
+                    <h3>JPEG поток</h3>
+                    <div class="form-grid">
+                        <span>Включен</span><input type="checkbox" id="jpeg.enabled">
+                        <span>Разрешение</span><input type="text" id="jpeg.size" placeholder="1920x1080">
+                        <span>Качество (1-100)</span><input type="number" id="jpeg.qfactor" min="1" max="100">
+                        <span>Частота кадров</span><input type="number" id="jpeg.fps">
+                        <span>MJPEG через RTSP</span><input type="checkbox" id="jpeg.rtsp">
+                    </div>
+                </div>
+                <div id="tab-osd" class="tab-content">
+                    <h3>OSD (On-Screen Display)</h3>
+                    <div class="form-grid">
+                        <span>Включить OSD</span><input type="checkbox" id="osd.enabled">
+                        <span class="full-width">Шаблон</span><input type="text" id="osd.template" class="full-width">
+                        <span class="full-width">Путь к шрифту</span><input type="text" id="osd.font" class="full-width">
+                        <span>Размер шрифта</span><input type="text" id="osd.size">
+                        <span>Позиция X</span><input type="number" id="osd.posX">
+                        <span>Позиция Y</span><input type="number" id="osd.posY">
+                        <span class="full-width">Маски приватности</span><input type="text" id="osd.privacyMasks" class="full-width">
+                    </div>
+                </div>
+                <div id="tab-audio" class="tab-content">
+                    <h3>Аудио</h3>
+                    <div class="form-grid">
+                        <span>Включено</span><input type="checkbox" id="audio.enabled">
+                        <span>Кодек</span><select id="audio.codec"><option value="opus">Opus</option><option value="aac">AAC</option><option value="pcm">PCM</option><option value="alaw">G.711A (alaw)</option><option value="ulaw">G.711U (ulaw)</option></select>
+                        <span>Частота</span><select id="audio.srate"><option value="8000">8000 Hz</option><option value="16000">16000 Hz</option><option value="32000">32000 Hz</option><option value="48000">48000 Hz</option></select>
+                        <span>Громкость входа</span><input type="number" id="audio.volume" min="0" max="100">
+                        <span>Двойной микрофон</span><input type="checkbox" id="audio.dual">
+                        <span>Выход (динамик)</span><input type="checkbox" id="audio.outputEnabled">
+                        <span>Громкость выхода</span><input type="number" id="audio.outputVolume" min="0" max="100">
+                        <span>GPIO пин динамика</span><input type="number" id="audio.speakerPin">
+                        <span>Инверт. пин динамика</span><input type="checkbox" id="audio.speakerPinInvert">
+                    </div>
+                </div>
+                <div id="tab-rtsp" class="tab-content">
+                    <h3>RTSP сервер</h3>
+                    <div class="form-grid">
+                        <span>Включен</span><input type="checkbox" id="rtsp.enabled">
+                        <span>Порт</span><input type="number" id="rtsp.port">
+                    </div>
+                </div>
+                <div id="tab-nightMode" class="tab-content">
+                    <h3>Ночной режим</h3>
+                    <div class="form-grid">
+                        <span>Ч/Б изображение</span><input type="checkbox" id="nightMode.colorToGray">
+                        <span>ИК-фильтр, пин 1</span><input type="number" id="nightMode.irCutPin1">
+                        <span>Инверсия пина 1</span><input type="checkbox" id="nightMode.irCutSingleInvert">
+                        <span>ИК-фильтр, пин 2</span><input type="number" id="nightMode.irCutPin2">
+                        <span>Пин подсветки</span><input type="number" id="nightMode.backlightPin">
+                        <span>DRC в ночн. режиме</span><input type="number" id="nightMode.overrideDrc">
+                        <span>Монитор освещенности</span><input type="checkbox" id="nightMode.lightMonitor">
+                        <span>Пин датчика света</span><input type="number" id="nightMode.lightSensorPin">
+                        <span>Инверсия датчика света</span><input type="checkbox" id="nightMode.lightSensorInvert">
+                        <span>Задержка переключения (с)</span><input type="number" id="nightMode.monitorDelay">
+                        <span>Порог (Ночь)</span><input type="number" id="nightMode.minThreshold">
+                        <span>Порог (День)</span><input type="number" id="nightMode.maxThreshold">
+                    </div>
+                </div>
+                <div id="tab-motionDetect" class="tab-content">
+                    <h3>Детектор движения</h3>
+                    <div class="form-grid">
+                        <span>Включен</span><input type="checkbox" id="motionDetect.enabled">
+                        <span>Визуализировать</span><input type="checkbox" id="motionDetect.visualize">
+                        <span>Отладка</span><input type="checkbox" id="motionDetect.debug">
+                        <span class="full-width">Зона интереса (ROI)</span><input type="text" id="motionDetect.roi" class="full-width">
+                    </div>
+                </div>
+                <div id="tab-records" class="tab-content">
+                    <h3>Запись</h3>
+                    <div class="form-grid">
+                        <span>Включить запись</span><input type="checkbox" id="records.enabled">
+                        <span class="full-width">Путь для записи</span><input type="text" id="records.path" class="full-width">
+                        <span>Лимит файла (мин)</span><input type="number" id="records.split">
+                        <span>Лимит места (%)</span><input type="number" id="records.maxUsage">
+                        <span>Запись доп. потока</span><input type="checkbox" id="records.substream">
+                    </div>
+                </div>
+                <div id="tab-outgoing" class="tab-content">
+                    <h3>Исходящие потоки</h3>
+                    <div class="form-grid">
+                        <span>Включить</span><input type="checkbox" id="outgoing.enabled">
+                        <span class="full-width">Адрес сервера (URL)</span><input type="text" id="outgoing.server" class="full-width">
+                        <span>Размер RTP пакета</span><input type="number" id="outgoing.naluSize">
+                        <span>Использовать доп. поток</span><input type="checkbox" id="outgoing.substream">
+                    </div>
+                </div>
+                <div id="tab-watchdog" class="tab-content"><div class="form-grid"><span>Включен</span><input type="checkbox" id="watchdog.enabled"><span>Таймаут (сек)</span><input type="number" id="watchdog.timeout"></div></div>
+                <div id="tab-hls" class="tab-content"><div class="form-grid"><span>Включен</span><input type="checkbox" id="hls.enabled"></div></div>
+                <div id="tab-onvif" class="tab-content"><div class="form-grid"><span>Включен</span><input type="checkbox" id="onvif.enabled"></div></div>
+                <div id="tab-ipeye" class="tab-content">
+                    <h3>IPEYE</h3>
+                    <div class="form-grid">
+                        <span>Включен</span><input type="checkbox" id="ipeye.enabled">
+                        <span>ID камеры</span><input type="text" id="ipeye.uuid">
+                    </div>
+                </div>
+                <div id="tab-netip" class="tab-content">
+                    <h3>NETIP</h3>
+                    <div class="form-grid">
+                        <span>Включить протокол</span><input type="checkbox" id="netip.enabled">
+                        <span>Порт</span><input type="number" id="netip.port">
+                        <span>Имя пользователя</span><input type="text" id="netip.user">
+                        <span>Хеш пароля</span><input type="text" id="netip.password">
+                        <span>Включить снапшоты</span><input type="checkbox" id="netip.snapshots">
+                        <span>Игнор. установку времени</span><input type="checkbox" id="netip.ignoreSetTime">
+                    </div>
                 </div>
             </div>
-            <div id="tab-isp" class="tab-content">
-                <h3>ISP (Процессор изображений)</h3>
-                <div class="form-grid">
-                    <span>Сжатие динам. диапазона</span><input type="number" id="isp.drc">
-                    <span>Конфиг. файл сенсора</span><input type="text" id="isp.sensorConfig" class="full-width">
-                    <span>Профиль кач-ва изобр.</span><input type="text" id="isp.iqProfile" class="full-width">
-                    <span>Подавление мерцания</span>
-                    <select id="isp.antiFlicker">
-                        <option value="disabled">Disabled</option>
-                        <option value="50">50 Hz</option>
-                        <option value="60">60 Hz</option>
-                    </select>
-                    <span>Медленный затвор</span>
-                    <select id="isp.slowShutter">
-                        <option value="disabled">Disabled</option>
-                        <option value="low">Low</option>
-                        <option value="medium">Medium</option>
-                        <option value="high">High</option>
-                    </select>
-                    <span>Режим RAW</span>
-                    <select id="isp.rawMode">
-                        <option value="none">None</option>
-                        <option value="slow">Slow</option>
-                        <option value="fast">Fast</option>
-                    </select>
-                    <span>Блоки памяти для кодера</span><input type="number" id="isp.blkCnt">
-                    <span>Режим памяти</span>
-                    <select id="isp.memMode">
-                        <option value="normal">Normal</option>
-                        <option value="reduction">Reduction</option>
-                    </select>
-                    <span>Цифр. стаб. изображения</span><input type="checkbox" id="isp.dis">
-                    <span>Зеркало (ISP)</span><input type="checkbox" id="isp.mirror">
-                    <span>Переворот (ISP)</span><input type="checkbox" id="isp.flip">
-                </div>
-            </div>
-            <div id="tab-image" class="tab-content">
-                <h3>Image (Постобработка)</h3>
-                <div class="form-grid">
-                    <span>Зеркало</span><input type="checkbox" id="image.mirror">
-                    <span>Переворот</span><input type="checkbox" id="image.flip">
-                    <span>Поворот</span><select id="image.rotate"><option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select>
-                    <span>Контраст</span><input type="number" id="image.contrast" min="0" max="100">
-                    <span>Оттенок</span><input type="number" id="image.hue" min="0" max="100">
-                    <span>Насыщенность</span><input type="number" id="image.saturation" min="0" max="100">
-                    <span>Яркость</span><input type="number" id="image.luminance" min="0" max="100">
-                </div>
-            </div>
-            <div id="tab-video0" class="tab-content">
-                <h3>Основной поток</h3>
-                <div class="form-grid">
-                    <span>Включен</span><input type="checkbox" id="video0.enabled">
-                    <span>Разрешение</span><input type="text" id="video0.size" placeholder="1920x1080">
-                    <span>Кодек</span><select id="video0.codec"><option value="h264">H.264</option><option value="h265">H.265</option></select>
-                    <span>Профиль</span><select id="video0.profile"><option value="base">Base</option><option value="main">Main</option><option value="high">High</option></select>
-                    <span>Частота кадров</span><input type="number" id="video0.fps">
-                    <span>Битрейт (kbps)</span><input type="number" id="video0.bitrate">
-                    <span>Режим битрейта</span>
-                    <select id="video0.rcMode">
-                        <option value="cbr">CBR</option>
-                        <option value="vbr">VBR</option>
-                        <option value="avbr">AVBR</option>
-                    </select>
-                    <span>Интервал I-frame (сек)</span><input type="text" id="video0.gopSize">
-                    <span>Режим GOP</span>
-                    <select id="video0.gopMode">
-                        <option value="normal">Normal</option>
-                        <option value="dual">Dual</option>
-                        <option value="smart">Smart</option>
-                    </select>
-                    <span>Единицы среза</span><input type="number" id="video0.sliceUnits">
-                    <span>Обрезка (crop)</span><input type="text" id="video0.crop" placeholder="w:h:x:y">
-                </div>
-            </div>
-            <div id="tab-video1" class="tab-content">
-                <h3>Дополнительный поток</h3>
-                 <div class="form-grid">
-                    <span>Включен</span><input type="checkbox" id="video1.enabled">
-                    <span>Разрешение</span><input type="text" id="video1.size" placeholder="704x576">
-                    <span>Кодек</span><select id="video1.codec"><option value="h264">H.264</option><option value="h265">H.265</option></select>
-                    <span>Профиль</span><select id="video1.profile"><option value="base">Base</option><option value="main">Main</option><option value="high">High</option></select>
-                    <span>Частота кадров</span><input type="number" id="video1.fps">
-                    <span>Битрейт (kbps)</span><input type="number" id="video1.bitrate">
-                    <span>Режим битрейта</span>
-                    <select id="video1.rcMode">
-                        <option value="cbr">CBR</option>
-                        <option value="vbr">VBR</option>
-                        <option value="avbr">AVBR</option>
-                    </select>
-                    <span>Интервал I-frame (сек)</span><input type="text" id="video1.gopSize">
-                    <span>Режим GOP</span>
-                    <select id="video1.gopMode">
-                        <option value="normal">Normal</option>
-                        <option value="dual">Dual</option>
-                        <option value="smart">Smart</option>
-                    </select>
-                    <span>Единицы среза</span><input type="number" id="video1.sliceUnits">
-                    <span>Обрезка (crop)</span><input type="text" id="video1.crop" placeholder="w:h:x:y">
-                </div>
-            </div>
-            <div id="tab-jpeg" class="tab-content">
-                 <h3>JPEG поток</h3>
-                 <div class="form-grid">
-                    <span>Включен</span><input type="checkbox" id="jpeg.enabled">
-                    <span>Разрешение</span><input type="text" id="jpeg.size" placeholder="1920x1080">
-                    <span>Качество (1-100)</span><input type="number" id="jpeg.qfactor" min="1" max="100">
-                    <span>Частота кадров</span><input type="number" id="jpeg.fps">
-                    <span>MJPEG через RTSP</span><input type="checkbox" id="jpeg.rtsp">
-                </div>
-            </div>
-            <div id="tab-osd" class="tab-content">
-                <h3>OSD (On-Screen Display)</h3>
-                <div class="form-grid">
-                    <span>Включить OSD</span><input type="checkbox" id="osd.enabled">
-                    <span>Шаблон</span><input type="text" id="osd.template" class="full-width">
-                    <span>Путь к шрифту</span><input type="text" id="osd.font" class="full-width">
-                    <span>Размер шрифта</span><input type="text" id="osd.size">
-                    <span>Позиция X</span><input type="number" id="osd.posX">
-                    <span>Позиция Y</span><input type="number" id="osd.posY">
-                    <span>Маски приватности</span><input type="text" id="osd.privacyMasks" class="full-width">
-                </div>
-            </div>
-            <div id="tab-audio" class="tab-content">
-                 <h3>Аудио</h3>
-                 <div class="form-grid">
-                    <span>Включено</span><input type="checkbox" id="audio.enabled">
-                    <span>Кодек</span>
-                    <select id="audio.codec">
-                        <option value="opus">Opus</option>
-                        <option value="aac">AAC</option>
-                        <option value="pcm">PCM</option>
-                        <option value="alaw">G.711A (alaw)</option>
-                        <option value="ulaw">G.711U (ulaw)</option>
-                    </select>
-                    <span>Частота</span>
-                    <select id="audio.srate">
-                        <option value="8000">8000 Hz</option>
-                        <option value="16000">16000 Hz</option>
-                        <option value="32000">32000 Hz</option>
-                        <option value="48000">48000 Hz</option>
-                    </select>
-                    <span>Громкость входа</span><input type="number" id="audio.volume" min="0" max="100">
-                    <span>Двойной микрофон</span><input type="checkbox" id="audio.dual">
-                    <span>Выход (динамик)</span><input type="checkbox" id="audio.outputEnabled">
-                    <span>Громкость выхода</span><input type="number" id="audio.outputVolume" min="0" max="100">
-                    <span>GPIO пин динамика</span><input type="number" id="audio.speakerPin">
-                    <span>Инверт. пин динамика</span><input type="checkbox" id="audio.speakerPinInvert">
-                </div>
-            </div>
-            <div id="tab-rtsp" class="tab-content">
-                 <h3>RTSP сервер</h3>
-                 <div class="form-grid">
-                    <span>Включен</span><input type="checkbox" id="rtsp.enabled">
-                    <span>Порт</span><input type="number" id="rtsp.port">
-                 </div>
-            </div>
-            <div id="tab-nightMode" class="tab-content">
-                <h3>Ночной режим</h3>
-                <div class="form-grid">
-                    <span>Ч/Б изображение</span><input type="checkbox" id="nightMode.colorToGray">
-                    <span>ИК-фильтр, пин 1</span><input type="number" id="nightMode.irCutPin1">
-                    <span>Инверсия пина 1</span><input type="checkbox" id="nightMode.irCutSingleInvert">
-                    <span>ИК-фильтр, пин 2</span><input type="number" id="nightMode.irCutPin2">
-                    <span>Пин подсветки</span><input type="number" id="nightMode.backlightPin">
-                    <span>DRC в ночн. режиме</span><input type="number" id="nightMode.overrideDrc">
-                    <span>Монитор освещенности</span><input type="checkbox" id="nightMode.lightMonitor">
-                    <span>Пин датчика света</span><input type="number" id="nightMode.lightSensorPin">
-                    <span>Инверсия датчика света</span><input type="checkbox" id="nightMode.lightSensorInvert">
-                    <span>Задержка переключения (с)</span><input type="number" id="nightMode.monitorDelay">
-                    <span>Порог (Ночь)</span><input type="number" id="nightMode.minThreshold">
-                    <span>Порог (День)</span><input type="number" id="nightMode.maxThreshold">
-                </div>
-            </div>
-            <div id="tab-motionDetect" class="tab-content">
-                 <h3>Детектор движения</h3>
-                 <div class="form-grid">
-                    <span>Включен</span><input type="checkbox" id="motionDetect.enabled">
-                    <span>Визуализировать</span><input type="checkbox" id="motionDetect.visualize">
-                    <span>Отладка</span><input type="checkbox" id="motionDetect.debug">
-                    <span>Зона интереса (ROI)</span><input type="text" id="motionDetect.roi" class="full-width">
-                </div>
-            </div>
-            <div id="tab-records" class="tab-content">
-                <h3>Запись</h3>
-                <div class="form-grid">
-                    <span>Включить запись</span><input type="checkbox" id="records.enabled">
-                    <span>Путь для записи</span><input type="text" id="records.path" class="full-width">
-                    <span>Лимит файла (мин)</span><input type="number" id="records.split">
-                    <span>Лимит места (%)</span><input type="number" id="records.maxUsage">
-                    <span>Запись доп. потока</span><input type="checkbox" id="records.substream">
-                </div>
-            </div>
-            <div id="tab-outgoing" class="tab-content">
-                <h3>Исходящие потоки</h3>
-                <div class="form-grid">
-                    <span>Включить</span><input type="checkbox" id="outgoing.enabled">
-                    <span>Адрес сервера (URL)</span><input type="text" id="outgoing.server" class="full-width">
-                    <span>Размер RTP пакета</span><input type="number" id="outgoing.naluSize">
-                    <span>Использовать доп. поток</span><input type="checkbox" id="outgoing.substream">
-                </div>
-            </div>
-            <div id="tab-watchdog" class="tab-content"><div class="form-grid"><span>Включен</span><input type="checkbox" id="watchdog.enabled"><span>Таймаут (сек)</span><input type="number" id="watchdog.timeout"></div></div>
-            <div id="tab-hls" class="tab-content"><div class="form-grid"><span>Включен</span><input type="checkbox" id="hls.enabled"></div></div>
-            <div id="tab-onvif" class="tab-content"><div class="form-grid"><span>Включен</span><input type="checkbox" id="onvif.enabled"></div></div>
-            <div id="tab-ipeye" class="tab-content">
-                <h3>IPEYE</h3>
-                <div class="form-grid">
-                    <span>Включен</span><input type="checkbox" id="ipeye.enabled">
-                    <span>ID камеры</span><input type="text" id="ipeye.uuid">
-                </div>
-            </div>
-            <div id="tab-netip" class="tab-content">
-                <h3>NETIP</h3>
-                <div class="form-grid">
-                    <span>Включить протокол</span><input type="checkbox" id="netip.enabled">
-                    <span>Порт</span><input type="number" id="netip.port">
-                    <span>Имя пользователя</span><input type="text" id="netip.user">
-                    <span>Хеш пароля</span><input type="text" id="netip.password">
-                    <span>Включить снапшоты</span><input type="checkbox" id="netip.snapshots">
-                    <span>Игнор. установку времени</span><input type="checkbox" id="netip.ignoreSetTime">
-                </div>
-            </div>
-
-            <div class="form-buttons full-width">
+            <div class="modal-footer">
                 <button id="save-settings-btn">Сохранить</button>
                 <button id="restart-majestic-btn" style="background-color: #ffc107; color: black;">Перезапустить Majestic</button>
+                <button id="kill-all-btn-modal" style="background-color: var(--danger-color); color: white;">Аварийный сброс</button>
             </div>
             <div id="settings-toast" class="toast-notification"></div>
         </div>
