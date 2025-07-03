@@ -22,9 +22,23 @@
         .header .tab.active { color: var(--text-main); border-bottom-color: var(--accent-color); }
         
         .main-container { display: flex; flex-grow: 1; overflow: hidden; }
-        .view-container { flex-grow: 1; padding: 10px; }
-        #grid-container { width: 100%; height: 100%; display: grid; grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); gap: 10px; }
-        .grid-cell { position: relative; background-color: var(--bg-dark); border-radius: 4px; display: flex; flex-direction: column; justify-content: center; align-items: center; color: var(--text-secondary); border: 1px solid var(--border-color); cursor: default; text-align: center; transition: background-color 0.2s, border-color 0.2s; }
+        .view-container { flex-grow: 1; padding: 10px; overflow-y: auto; }
+        #grid-container { width: 100%; display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .grid-cell { 
+            position: relative; 
+            background-color: var(--bg-dark); 
+            border-radius: 4px; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center; 
+            color: var(--text-secondary); 
+            border: 1px solid var(--border-color); 
+            cursor: default; 
+            text-align: center; 
+            transition: background-color 0.2s, border-color 0.2s; 
+            aspect-ratio: 16 / 9;
+        }
         .grid-cell.drag-over { border: 2px dashed var(--accent-color); background-color: var(--bg-light); }
         .grid-cell canvas { width: 100%; height: 100%; object-fit: contain; border-radius: 4px; }
         .grid-cell.active { border: 2px solid var(--accent-color); }
@@ -39,9 +53,19 @@
         .sidebar { width: var(--sidebar-width); background-color: var(--bg-dark); border-left: 1px solid var(--border-color); display: flex; flex-direction: column; }
         .sidebar-header { padding: 10px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
         .sidebar-header h3 { margin: 0; font-size: 1em; }
+        .sidebar-header .header-buttons { display: flex; gap: 5px; }
         .sidebar-header .icon-button { background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 4px; border-radius: 50%; display: flex; align-items: center; }
         .sidebar-header .icon-button:hover { color: var(--text-main); background-color: var(--bg-light); }
-        #camera-list { list-style: none; padding: 10px; margin: 0; flex-grow: 1; overflow-y: auto; }
+        
+        #camera-list-container { overflow-y: auto; flex-grow: 1; }
+        .group-container { margin-bottom: 10px; padding: 0 5px; }
+        .group-header { display: flex; align-items: center; cursor: pointer; padding: 5px; border-radius: 4px; }
+        .group-header:hover { background-color: var(--bg-light); }
+        .group-header .toggle-icon { font-size: 20px; transition: transform 0.2s; user-select: none; }
+        .group-header .toggle-icon.collapsed { transform: rotate(-90deg); }
+        .group-header .group-name { font-weight: bold; margin-left: 5px; }
+        .group-cameras { padding-left: 10px; overflow: hidden; max-height: 1000px; transition: max-height 0.3s ease-in-out, padding 0.3s ease-in-out; }
+        .group-cameras.collapsed { max-height: 0; padding-top: 0; padding-bottom: 0; }
         .camera-item { padding: 8px; border-radius: 4px; margin-bottom: 5px; cursor: grab; display: flex; align-items: center; gap: 8px; }
         .camera-item:hover { background-color: var(--bg-light); }
         .status-icon { width: 10px; height: 10px; border-radius: 50%; background-color: #6c757d; flex-shrink: 0; }
@@ -92,9 +116,12 @@
         <div class="sidebar">
             <div class="sidebar-header">
                 <h3>Устройства</h3>
-                <button id="add-camera-sidebar-btn" class="icon-button" title="Добавить новую камеру"><i class="material-icons">add_circle_outline</i></button>
+                <div class="header-buttons">
+                    <button id="add-group-btn" class="icon-button" title="Создать новую группу"><i class="material-icons">create_new_folder</i></button>
+                    <button id="add-camera-sidebar-btn" class="icon-button" title="Добавить новую камеру"><i class="material-icons">add_circle_outline</i></button>
+                </div>
             </div>
-            <ul id="camera-list"></ul>
+            <div id="camera-list-container"></div>
         </div>
     </div>
     <div class="bottom-toolbar">
@@ -102,6 +129,7 @@
         <div class="toolbar-group" id="layout-controls"></div>
     </div>
 
+    <!-- +++ МОДАЛЬНЫЕ ОКНА ПЕРЕМЕЩЕНЫ СЮДА, В КОНЕЦ BODY +++ -->
     <div id="add-camera-modal" class="modal-backdrop hidden">
         <div class="modal-content">
             <span id="add-modal-close-btn" class="modal-close-btn">×</span>
@@ -158,14 +186,7 @@
                         <span>HTTPS порт</span><input type="number" id="system.httpsPort" min="1" max="65535">
                         <span class="full-width">Путь к SSL сертификату</span><input type="text" id="system.httpsCertificate" class="full-width">
                         <span class="full-width">Путь к SSL ключу</span><input type="text" id="system.httpsCertificateKey" class="full-width">
-                        <span>Уровень логов</span>
-                        <select id="system.logLevel">
-                            <option value="verbose">Verbose</option>
-                            <option value="debug">Debug</option>
-                            <option value="info">Info</option>
-                            <option value="warning">Warning</option>
-                            <option value="error">Error</option>
-                        </select>
+                        <span>Уровень логов</span><select id="system.logLevel"><option value="verbose">Verbose</option><option value="debug">Debug</option><option value="info">Info</option><option value="warning">Warning</option><option value="error">Error</option></select>
                         <span>Отключить авторизацию</span><input type="checkbox" id="system.unsafe">
                         <span>Макс. размер буфера (KB)</span><input type="number" id="system.buffer">
                         <span>Включить плагины</span><input type="checkbox" id="system.plugins">
@@ -177,15 +198,11 @@
                         <span>Сжатие динам. диапазона</span><input type="number" id="isp.drc">
                         <span class="full-width">Конфиг. файл сенсора</span><input type="text" id="isp.sensorConfig" class="full-width">
                         <span class="full-width">Профиль кач-ва изобр.</span><input type="text" id="isp.iqProfile" class="full-width">
-                        <span>Подавление мерцания</span>
-                        <select id="isp.antiFlicker"><option value="disabled">Disabled</option><option value="50">50 Hz</option><option value="60">60 Hz</option></select>
-                        <span>Медленный затвор</span>
-                        <select id="isp.slowShutter"><option value="disabled">Disabled</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select>
-                        <span>Режим RAW</span>
-                        <select id="isp.rawMode"><option value="none">None</option><option value="slow">Slow</option><option value="fast">Fast</option></select>
+                        <span>Подавление мерцания</span><select id="isp.antiFlicker"><option value="disabled">Disabled</option><option value="50">50 Hz</option><option value="60">60 Hz</option></select>
+                        <span>Медленный затвор</span><select id="isp.slowShutter"><option value="disabled">Disabled</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select>
+                        <span>Режим RAW</span><select id="isp.rawMode"><option value="none">None</option><option value="slow">Slow</option><option value="fast">Fast</option></select>
                         <span>Блоки памяти для кодера</span><input type="number" id="isp.blkCnt">
-                        <span>Режим памяти</span>
-                        <select id="isp.memMode"><option value="normal">Normal</option><option value="reduction">Reduction</option></select>
+                        <span>Режим памяти</span><select id="isp.memMode"><option value="normal">Normal</option><option value="reduction">Reduction</option></select>
                         <span>Цифр. стаб. изображения</span><input type="checkbox" id="isp.dis">
                         <span>Зеркало (ISP)</span><input type="checkbox" id="isp.mirror">
                         <span>Переворот (ISP)</span><input type="checkbox" id="isp.flip">
@@ -246,7 +263,7 @@
                     </div>
                 </div>
                 <div id="tab-osd" class="tab-content">
-                    <h3>OSD (On-Screen Display)</h3>
+                    <h3>OSD</h3>
                     <div class="form-grid">
                         <span>Включить OSD</span><input type="checkbox" id="osd.enabled">
                         <span class="full-width">Шаблон</span><input type="text" id="osd.template" class="full-width">
@@ -261,7 +278,7 @@
                     <h3>Аудио</h3>
                     <div class="form-grid">
                         <span>Включено</span><input type="checkbox" id="audio.enabled">
-                        <span>Кодек</span><select id="audio.codec"><option value="opus">Opus</option><option value="aac">AAC</option><option value="pcm">PCM</option><option value="alaw">G.711A (alaw)</option><option value="ulaw">G.711U (ulaw)</option></select>
+                        <span>Кодек</span><select id="audio.codec"><option value="opus">Opus</option><option value="aac">AAC</option><option value="pcm">PCM</option><option value="alaw">G.711A</option><option value="ulaw">G.711U</option></select>
                         <span>Частота</span><select id="audio.srate"><option value="8000">8000 Hz</option><option value="16000">16000 Hz</option><option value="32000">32000 Hz</option><option value="48000">48000 Hz</option></select>
                         <span>Громкость входа</span><input type="number" id="audio.volume" min="0" max="100">
                         <span>Двойной микрофон</span><input type="checkbox" id="audio.dual">
@@ -272,7 +289,7 @@
                     </div>
                 </div>
                 <div id="tab-rtsp" class="tab-content">
-                    <h3>RTSP сервер</h3>
+                    <h3>RTSP</h3>
                     <div class="form-grid">
                         <span>Включен</span><input type="checkbox" id="rtsp.enabled">
                         <span>Порт</span><input type="number" id="rtsp.port">
@@ -351,6 +368,21 @@
                 <button id="kill-all-btn-modal" style="background-color: var(--danger-color); color: white;">Аварийный сброс</button>
             </div>
             <div id="settings-toast" class="toast-notification"></div>
+        </div>
+    </div>
+
+    <div id="add-group-modal" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <span id="add-group-modal-close-btn" class="modal-close-btn">×</span>
+            <h2 id="add-group-modal-title">Создать новую группу</h2>
+            <div class="form-grid simple">
+                <b>Название:</b> <input type="text" id="new-group-name" placeholder="Моя новая группа">
+                <b></b>
+                <div class="form-buttons">
+                    <button id="save-group-btn">Сохранить</button>
+                    <button id="cancel-group-btn" style="background-color: #6c757d;">Отмена</button>
+                </div>
+            </div>
         </div>
     </div>
     

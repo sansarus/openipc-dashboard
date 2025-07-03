@@ -12,9 +12,8 @@ const dgram = require('dgram');
 const crypto = require('crypto');
 const ffmpeg = require('@ffmpeg-installer/ffmpeg');
 
-// --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
+// Исправление пути к ffmpeg для упакованного приложения
 const ffmpegPath = ffmpeg.path.replace('app.asar', 'app.asar.unpacked');
-// -------------------------
 
 let mainWindow = null;
 const streamManager = {};
@@ -22,13 +21,17 @@ const usedPorts = new Set();
 const BASE_PORT = 9001;
 
 function getDataPath() {
+    // В режиме разработки используем стандартный путь, чтобы не засорять папку проекта
     if (!app.isPackaged) {
         return app.getPath('userData');
     }
+    // В упакованном приложении проверяем наличие файла-маркера
     const portableMarkerPath = path.join(path.dirname(app.getPath('exe')), 'portable.txt');
     if (fs.existsSync(portableMarkerPath)) {
+        // Портативный режим: используем папку с exe
         return path.dirname(app.getPath('exe'));
     } else {
+        // Стандартный режим: используем AppData и т.д.
         return app.getPath('userData');
     }
 }
@@ -159,7 +162,7 @@ ipcMain.handle('start-video-stream', async (event, { credentials, streamId }) =>
         '-f', 'mpegts',
         '-codec:v', 'mpeg1video',
         '-q:v', '4',
-        '-s', streamId === 1 ? '640x360' : '1280x720',
+        '-s', streamId === 0 ? '1280x720' : '640x360',
         '-r', '25',
         '-codec:a', 'mp2',
         '-b:a', '128k',
@@ -170,6 +173,10 @@ ipcMain.handle('start-video-stream', async (event, { credentials, streamId }) =>
     ];
     const ffmpegProcess = spawn(ffmpegPath, ffmpegArgs, { detached: false, windowsHide: true });
     
+    ffmpegProcess.on('error', (err) => {
+        console.error(`[FFMPEG] Failed to start subprocess: ${err.message}`);
+    });
+
     ffmpegProcess.stdout.on('data', (data) => {
         wss.clients.forEach((client) => { 
             if (client.readyState === WebSocket.OPEN) client.send(data); 
@@ -245,13 +252,15 @@ ipcMain.handle('save-configuration', async (event, config) => {
 ipcMain.handle('load-configuration', async () => {
     const defaultConfig = {
         cameras: [],
+        groups: [],
         layout: { cols: 2, rows: 2 },
         gridState: [null, null, null, null]
     };
     try {
         await fsPromises.access(configPath);
         const data = await fsPromises.readFile(configPath, 'utf-8');
-        return JSON.parse(data);
+        let config = JSON.parse(data);
+        return { ...defaultConfig, ...config };
     } catch (e) {
         try {
             await fsPromises.access(oldCamerasPath);
@@ -261,7 +270,7 @@ ipcMain.handle('load-configuration', async () => {
             const newConfig = { ...defaultConfig, cameras: oldCameras };
             await fsPromises.writeFile(configPath, JSON.stringify(newConfig, null, 2));
             await fsPromises.rename(oldCamerasPath, `${oldCamerasPath}.bak`);
-            console.log('Migration successful: cameras.json has been migrated to config.json');
+            console.log('Migration successful');
             return newConfig;
         } catch (migrationError) {
             console.log('No existing config found, returning default.');
@@ -282,7 +291,6 @@ ipcMain.handle('get-system-stats', () => {
     const idle = totalIdle / cpus.length;
     const total = totalTick / cpus.length;
     const usage = 100 * (1 - idle / total);
-
     return {
         cpu: usage.toFixed(0),
         ram: (process.memoryUsage().heapUsed / 1024 / 1024).toFixed(0),
