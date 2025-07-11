@@ -1,6 +1,6 @@
 {
   "name": "openipc-dashboard",
-  "version": "2.2.2",
+  "version": "2.3.0",
   "description": "App for managing OpenIPC cameras",
   "main": "main.js",
   "scripts": {
@@ -21,6 +21,8 @@
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/xterm": "^5.5.0",
     "axios": "^1.6.8",
+    "express": "^4.19.2",
+    "keytar": "^7.9.0", 
     "ssh2": "^1.15.0",
     "ws": "^8.17.1"
   },
@@ -61,7 +63,8 @@
       "!*.code-workspace"
     ],
     "asarUnpack": [
-      "**/node_modules/@ffmpeg-installer/ffmpeg/**"
+      "**/node_modules/@ffmpeg-installer/ffmpeg/**",
+      "**/node_modules/keytar/**"
     ],
     "publish": {
       "provider": "github",

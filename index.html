@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' ws://localhost:*; img-src 'self' data:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' video-archive:; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' ws://localhost:*; img-src 'self' data:;">
     <title>OpenIPC VMS</title>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <style>
@@ -22,10 +22,25 @@
         .header .tab.active { color: var(--text-main); border-bottom-color: var(--accent-color); }
         
         .main-container { display: flex; flex-grow: 1; overflow: hidden; }
-        .view-container { flex-grow: 1; padding: 10px; overflow-y: auto; }
-        #grid-container { width: 100%; display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        
+        .view-container { 
+            flex-grow: 1; 
+            padding: 10px;
+            position: relative;
+        }
+
+        #grid-container { 
+            width: 100%; 
+            height: 100%;
+            position: relative;
+        }
+        
+        #grid-container.fullscreen-mode .grid-cell:not(.fullscreen) {
+            display: none !important;
+        }
+        
         .grid-cell { 
-            position: relative; 
+            position: absolute;
             background-color: var(--bg-dark); 
             border-radius: 4px; 
             display: flex; 
@@ -34,20 +49,46 @@
             align-items: center; 
             color: var(--text-secondary); 
             border: 1px solid var(--border-color); 
-            cursor: default; 
+            cursor: pointer; 
             text-align: center; 
-            transition: background-color 0.2s, border-color 0.2s; 
-            aspect-ratio: 16 / 9;
+            transition: background-color 0.2s, border-color 0.2s;
+            padding: 5px;
+            box-sizing: border-box;
+            object-fit: contain;
         }
+
+        .grid-cell.fullscreen { 
+            position: fixed !important; 
+            top: 0 !important; 
+            left: 0 !important; 
+            width: 100vw !important; 
+            height: 100vh !important; 
+            z-index: 1001;
+            border: none; 
+            border-radius: 0; 
+            padding: 0;
+            background-color: #000; 
+        }
+        
+        .grid-cell.fullscreen .cell-controls {
+            position: fixed;
+            top: 10px;
+            right: 15px;
+        }
+
         .grid-cell.drag-over { border: 2px dashed var(--accent-color); background-color: var(--bg-light); }
         .grid-cell canvas { width: 100%; height: 100%; object-fit: contain; border-radius: 4px; }
         .grid-cell.active { border: 2px solid var(--accent-color); }
         .cell-controls { position: absolute; top: 5px; right: 5px; background-color: rgba(0,0,0,0.6); border-radius: 4px; z-index: 10; display: flex; gap: 5px; pointer-events: all; padding: 2px 4px; }
+        
         .cell-controls button { background: none; border: none; color: white; cursor: pointer; font-size: 16px; padding: 0; display: flex; align-items: center; }
+        .cell-controls button.fullscreen-btn { font-size: 20px; }
+        .cell-controls button.record-btn.recording { color: var(--danger-color); animation: pulse-rec 1.5s infinite; }
+        @keyframes pulse-rec { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+        
         .cell-name { position: absolute; bottom: 5px; right: 10px; background-color: rgba(0,0,0,0.6); color: white; padding: 3px 8px; border-radius: 4px; font-size: 13px; z-index: 10; pointer-events: none; }
         .cell-stats { position: absolute; bottom: 5px; left: 10px; background-color: rgba(0,0,0,0.6); color: #fff; padding: 3px 8px; border-radius: 4px; font-size: 13px; font-family: monospace; pointer-events: none; }
-        .grid-cell.fullscreen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 50; border: none; border-radius: 0; padding: 0; gap: 0; background-color: #000; }
-        #grid-container.fullscreen-mode .grid-cell:not(.fullscreen) { display: none; }
+        
         .grid-cell .placeholder-icon { font-size: 48px; margin-bottom: 10px; }
 
         .sidebar { width: var(--sidebar-width); background-color: var(--bg-dark); border-left: 1px solid var(--border-color); display: flex; flex-direction: column; }
@@ -66,25 +107,44 @@
         .group-header .group-name { font-weight: bold; margin-left: 5px; }
         .group-cameras { padding-left: 10px; overflow: hidden; max-height: 1000px; transition: max-height 0.3s ease-in-out, padding 0.3s ease-in-out; }
         .group-cameras.collapsed { max-height: 0; padding-top: 0; padding-bottom: 0; }
-        .camera-item { padding: 8px; border-radius: 4px; margin-bottom: 5px; cursor: grab; display: flex; align-items: center; gap: 8px; }
+        .camera-item { padding: 8px; border-radius: 4px; margin-bottom: 5px; cursor: grab; display: flex; align-items: center; gap: 8px; position: relative; }
         .camera-item:hover { background-color: var(--bg-light); }
         .status-icon { width: 10px; height: 10px; border-radius: 50%; background-color: #6c757d; flex-shrink: 0; }
         .status-icon.online { background-color: #28a745; }
+        .camera-item .rec-indicator {
+            width: 8px; height: 8px; border-radius: 50%; background-color: var(--danger-color);
+            position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+            display: none; animation: pulse-rec 1.5s infinite;
+        }
+        .camera-item.recording .rec-indicator { display: block; }
         
         .bottom-toolbar { height: var(--toolbar-height); background-color: var(--bg-dark); border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 15px; flex-shrink: 0; }
         .toolbar-group { display: flex; align-items: center; gap: 5px; }
-        .toolbar-group .layout-btn { background-color: var(--bg-light); border: 1px solid var(--border-color); color: var(--text-secondary); padding: 5px; border-radius: 4px; cursor: pointer; min-width: 30px; text-align: center; }
-        .toolbar-group .layout-btn:hover, .toolbar-group .layout-btn.active { background-color: var(--accent-color); color: white; border-color: var(--accent-color); }
-        .status-info { font-size: 12px; color: var(--text-secondary); }
+        .toolbar-group .layout-btn, .toolbar-group .icon-button { background-color: var(--bg-light); border: 1px solid var(--border-color); color: var(--text-secondary); padding: 5px; border-radius: 4px; cursor: pointer; min-width: 30px; text-align: center; display: flex; align-items: center; justify-content: center; }
+        .toolbar-group .layout-btn:hover, .toolbar-group .layout-btn.active, .toolbar-group .icon-button:hover { background-color: var(--accent-color); color: white; border-color: var(--accent-color); }
+        .status-info { font-size: 12px; color: var(--text-secondary); margin-left: 10px; }
 
         .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
         .modal-content { position: relative; background: white; padding: 20px 30px 30px 30px; border-radius: 8px; width: 500px; color: #333; }
         .modal-content.large { width: 700px; max-height: 90vh; display: flex; flex-direction: column; }
         .modal-body { overflow-y: auto; flex-grow: 1; padding-right: 10px;}
         .modal-footer { margin-top: auto; padding-top: 20px; border-top: 1px solid #eee; display: flex; gap: 10px; }
-        .modal-close-btn { position: absolute; top: 10px; right: 15px; font-size: 28px; font-weight: bold; color: #aaa; cursor: pointer; line-height: 1; user-select: none; }
+        .modal-close-btn { 
+            position: absolute; 
+            top: 10px; 
+            right: 15px; 
+            font-size: 28px; 
+            font-weight: bold; 
+            color: #aaa; 
+            cursor: pointer; 
+            line-height: 1; 
+            user-select: none; 
+            z-index: 10;
+        }
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; align-items: center; padding-top: 15px; }
         .form-grid.simple { grid-template-columns: 120px 1fr; }
+        .form-grid.with-button .form-input-wrapper { display: flex; gap: 5px; align-items: center; }
+        .form-grid.with-button .form-input-wrapper input { flex-grow: 1; }
         .form-grid label, .form-grid span { font-weight: 500; }
         .form-grid .full-width { grid-column: 1 / -1; }
         .form-grid input, .form-grid select, .form-grid button { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; width: 100%; box-sizing: border-box; }
@@ -100,6 +160,118 @@
         .toast-notification.show { opacity: 1; visibility: visible; }
         .toast-notification.error { background-color: var(--danger-color); }
         .hidden { display: none !important; }
+
+        .modal-content.archive {
+            width: 90vw;
+            max-width: 1200px;
+            height: 90vh;
+            padding: 0;
+            display: flex;
+            overflow: hidden;
+        }
+        .archive-container {
+            display: flex;
+            height: 100%;
+            width: 100%;
+        }
+        .archive-list-panel {
+            width: 300px;
+            flex-shrink: 0;
+            background-color: #f0f2f5;
+            border-right: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+        }
+        .archive-list-header {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .archive-list-header h3 {
+            margin: 0;
+            border: none;
+            font-size: 1.1em;
+            padding: 0;
+        }
+        #archive-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+        #archive-list li {
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+        }
+        #archive-list li:hover {
+            background-color: #e9ecef;
+        }
+        #archive-list li.selected {
+            background-color: var(--accent-color);
+            color: white;
+        }
+        #archive-list .file-name {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 4px;
+            word-break: break-all;
+        }
+        #archive-list .file-meta {
+            font-size: 0.8em;
+            opacity: 0.8;
+        }
+        .archive-player-panel {
+            flex-grow: 1;
+            background-color: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #666;
+            position: relative;
+        }
+        .archive-player-panel video {
+            max-width: 100%;
+            max-height: calc(100% - 40px);
+            display: block;
+        }
+        .archive-player-footer {
+            height: 40px;
+            width: 100%;
+            background-color: #f0f2f5;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            gap: 15px;
+        }
+        .archive-player-footer button {
+            background: none;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        .archive-player-footer button:hover {
+            background-color: #e9ecef;
+        }
+        .archive-player-footer button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .form-check-inline {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            margin-right: 15px;
+        }
+        .form-check-input {
+            width: auto !important;
+        }
     </style>
 </head>
 <body>
@@ -119,17 +291,22 @@
                 <div class="header-buttons">
                     <button id="add-group-btn" class="icon-button" title="Создать новую группу"><i class="material-icons">create_new_folder</i></button>
                     <button id="add-camera-sidebar-btn" class="icon-button" title="Добавить новую камеру"><i class="material-icons">add_circle_outline</i></button>
+                    <button id="general-settings-btn" class="icon-button" title="Общие настройки"><i class="material-icons">settings</i></button>
                 </div>
             </div>
             <div id="camera-list-container"></div>
         </div>
     </div>
     <div class="bottom-toolbar">
-        <div class="status-info" id="status-info">CPU: -- | RAM: --</div>
+        <div class="toolbar-group">
+            <button id="open-recordings-btn" class="icon-button" title="Открыть папку с записями"><i class="material-icons" style="font-size: 20px;">folder</i></button>
+            <button id="open-archive-btn" class="icon-button" title="Архив записей"><i class="material-icons" style="font-size: 20px;">archive</i></button>
+            <div class="status-info" id="status-info">CPU: -- | RAM: --</div>
+        </div>
         <div class="toolbar-group" id="layout-controls"></div>
     </div>
 
-    <!-- +++ МОДАЛЬНЫЕ ОКНА ПЕРЕМЕЩЕНЫ СЮДА, В КОНЕЦ BODY +++ -->
+    <!-- Модальные окна -->
     <div id="add-camera-modal" class="modal-backdrop hidden">
         <div class="modal-content">
             <span id="add-modal-close-btn" class="modal-close-btn">×</span>
@@ -140,11 +317,10 @@
                 <b>RTSP Порт:</b> <input type="number" id="new-cam-port" placeholder="554">
                 <b>Логин:</b>     <input type="text" id="new-cam-user" value="root">
                 <b>Пароль:</b>    <input type="password" id="new-cam-pass">
-                <b>Поток по умолч:</b>
-                <select id="new-cam-stream">
-                    <option value="0">Основной (HD)</option>
-                    <option value="1" selected>Дополнительный (SD)</option>
-                </select>
+                <b>Путь к HD потоку:</b>
+                <input type="text" id="new-cam-stream-path0" placeholder="/stream0">
+                <b>Путь к SD потоку:</b>
+                <input type="text" id="new-cam-stream-path1" placeholder="/stream1">
                 <b></b>
                 <div class="form-buttons">
                     <button id="save-camera-btn">Сохранить</button>
@@ -157,10 +333,11 @@
     <div id="settings-modal" class="modal-backdrop hidden">
         <div class="modal-content large">
             <span id="settings-modal-close-btn" class="modal-close-btn">×</span>
-            <h2 id="settings-modal-title">Настройки камеры</h2>
+            <h2 id="settings-modal-title">Настройки</h2>
             <div class="modal-body">
                 <div class="tabs">
-                    <button class="tab-button active" data-tab="tab-system">System</button>
+                    <button class="tab-button" data-tab="tab-general">Общие</button>
+                    <button class="tab-button" data-tab="tab-system">System</button>
                     <button class="tab-button" data-tab="tab-isp">ISP</button>
                     <button class="tab-button" data-tab="tab-image">Image</button>
                     <button class="tab-button" data-tab="tab-video0">Video0</button>
@@ -179,188 +356,526 @@
                     <button class="tab-button" data-tab="tab-ipeye">IPEYE</button>
                     <button class="tab-button" data-tab="tab-netip">NETIP</button>
                 </div>
-                <div id="tab-system" class="tab-content active">
+                <div id="tab-general" class="tab-content">
+                    <h3>Общие настройки приложения</h3>
+                    <div class="form-grid simple with-button">
+                        <span>Папка для записей</span>
+                        <div class="form-input-wrapper">
+                           <input type="text" id="app-settings-recordings-path" readonly>
+                           <button id="select-rec-path-btn" style="padding: 0 10px; min-width: 40px; height: 35px;"><i class="material-icons" style="font-size: 20px;">folder_open</i></button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="tab-system" class="tab-content">
                     <h3>System</h3>
-                    <div class="form-grid">
-                        <span>HTTP порт</span><input type="number" id="system.webPort" min="1" max="65535">
-                        <span>HTTPS порт</span><input type="number" id="system.httpsPort" min="1" max="65535">
-                        <span class="full-width">Путь к SSL сертификату</span><input type="text" id="system.httpsCertificate" class="full-width">
-                        <span class="full-width">Путь к SSL ключу</span><input type="text" id="system.httpsCertificateKey" class="full-width">
-                        <span>Уровень логов</span><select id="system.logLevel"><option value="verbose">Verbose</option><option value="debug">Debug</option><option value="info">Info</option><option value="warning">Warning</option><option value="error">Error</option></select>
-                        <span>Отключить авторизацию</span><input type="checkbox" id="system.unsafe">
-                        <span>Макс. размер буфера (KB)</span><input type="number" id="system.buffer">
-                        <span>Включить плагины</span><input type="checkbox" id="system.plugins">
+                    <div class="form-grid simple">
+                        <label for="system.webPort">Port for HTTP access</label>
+                        <input type="number" id="system.webPort" min="1" max="65535" step="1">
+                        
+                        <label for="system.httpsPort">Port for HTTPS access</label>
+                        <input type="number" id="system.httpsPort" min="1" max="65535" step="1">
+                
+                        <label for="system.httpsCertificate">Path to public SSL certificate</label>
+                        <input type="text" id="system.httpsCertificate">
+                
+                        <label for="system.httpsCertificateKey">Path to private SSL key</label>
+                        <input type="text" id="system.httpsCertificateKey">
+                
+                        <label for="system.logLevel">Severity of logging</label>
+                        <select id="system.logLevel">
+                            <option value="verbose">verbose</option>
+                            <option value="debug">debug</option>
+                            <option value="info">info</option>
+                        </select>
+                
+                        <label for="system.unsafe">Deactivate authorization</label>
+                        <div class="form-check-inline">
+                            <input type="checkbox" id="system.unsafe" class="form-check-input">
+                        </div>
+                
+                        <label for="system.buffer">Maximum buffer size</label>
+                        <input type="number" id="system.buffer">
+                
+                        <label for="system.plugins">Enable plugin support</label>
+                        <div class="form-check-inline">
+                            <input type="checkbox" id="system.plugins" class="form-check-input">
+                        </div>
                     </div>
                 </div>
+
                 <div id="tab-isp" class="tab-content">
-                    <h3>ISP (Процессор изображений)</h3>
-                    <div class="form-grid">
-                        <span>Сжатие динам. диапазона</span><input type="number" id="isp.drc">
-                        <span class="full-width">Конфиг. файл сенсора</span><input type="text" id="isp.sensorConfig" class="full-width">
-                        <span class="full-width">Профиль кач-ва изобр.</span><input type="text" id="isp.iqProfile" class="full-width">
-                        <span>Подавление мерцания</span><select id="isp.antiFlicker"><option value="disabled">Disabled</option><option value="50">50 Hz</option><option value="60">60 Hz</option></select>
-                        <span>Медленный затвор</span><select id="isp.slowShutter"><option value="disabled">Disabled</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select>
-                        <span>Режим RAW</span><select id="isp.rawMode"><option value="none">None</option><option value="slow">Slow</option><option value="fast">Fast</option></select>
-                        <span>Блоки памяти для кодера</span><input type="number" id="isp.blkCnt">
-                        <span>Режим памяти</span><select id="isp.memMode"><option value="normal">Normal</option><option value="reduction">Reduction</option></select>
-                        <span>Цифр. стаб. изображения</span><input type="checkbox" id="isp.dis">
-                        <span>Зеркало (ISP)</span><input type="checkbox" id="isp.mirror">
-                        <span>Переворот (ISP)</span><input type="checkbox" id="isp.flip">
+                    <h3>ISP</h3>
+                    <div class="form-grid simple">
+                        <label for="isp.drc">Dynamic range compression</label>
+                        <input type="number" id="isp.drc" step="1">
+                
+                        <label for="isp.sensorConfig">Sensor configuration file</label>
+                        <input type="text" id="isp.sensorConfig">
+                
+                        <label for="isp.antiFlicker">Anti-flicker</label>
+                        <select id="isp.antiFlicker">
+                            <option value="disabled">disabled</option>
+                            <option value="50">50</option>
+                            <option value="60">60</option>
+                        </select>
+                        
+                        <label for="isp.iqProfile">Image quality profile</label>
+                        <input type="text" id="isp.iqProfile">
+                
+                        <label for="isp.blkCnt">Memory blocks for encoder</label>
+                        <input type="number" id="isp.blkCnt" step="1">
+                
+                        <label for="isp.slowShutter">Slow shutter mode</label>
+                        <select id="isp.slowShutter">
+                            <option value="disabled">disabled</option>
+                            <option value="low">low</option>
+                            <option value="medium">medium</option>
+                            <option value="high">high</option>
+                        </select>
+                
+                        <label for="isp.rawMode">Mode for capturing RAW images</label>
+                        <select id="isp.rawMode">
+                            <option value="none">none</option>
+                            <option value="slow">slow</option>
+                            <option value="fast">fast</option>
+                        </select>
+                
+                        <label for="isp.dis">Digital image stabilization</label>
+                        <div class="form-check-inline">
+                            <input type="checkbox" id="isp.dis" class="form-check-input">
+                        </div>
+                        
+                        <label for="isp.memMode">Reduce memory usage</label>
+                        <select id="isp.memMode">
+                            <option value="normal">normal</option>
+                            <option value="reduction">reduction</option>
+                        </select>
                     </div>
                 </div>
+
                 <div id="tab-image" class="tab-content">
-                    <h3>Image (Постобработка)</h3>
-                    <div class="form-grid">
-                        <span>Зеркало</span><input type="checkbox" id="image.mirror">
-                        <span>Переворот</span><input type="checkbox" id="image.flip">
-                        <span>Поворот</span><select id="image.rotate"><option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select>
-                        <span>Контраст</span><input type="number" id="image.contrast" min="0" max="100">
-                        <span>Оттенок</span><input type="number" id="image.hue" min="0" max="100">
-                        <span>Насыщенность</span><input type="number" id="image.saturation" min="0" max="100">
-                        <span>Яркость</span><input type="number" id="image.luminance" min="0" max="100">
+                    <h3>Image</h3>
+                    <div class="form-grid simple">
+                        <label for="image.mirror">Flip image horizontally</label>
+                        <div class="form-check-inline">
+                            <input type="checkbox" id="image.mirror" class="form-check-input">
+                        </div>
+                
+                        <label for="image.flip">Flip image vertically</label>
+                        <div class="form-check-inline">
+                            <input type="checkbox" id="image.flip" class="form-check-input">
+                        </div>
+                
+                        <label for="image.contrast">Image contrast</label>
+                        <div class="form-input-wrapper">
+                            <input type="range" id="image.contrast" min="0" max="100" step="1" style="flex-grow: 1;">
+                            <span class="range-value" id="image.contrast-value" style="min-width: 30px; text-align: center;">50</span>
+                        </div>
+                
+                        <label for="image.hue">Image hue</label>
+                        <div class="form-input-wrapper">
+                            <input type="range" id="image.hue" min="0" max="100" step="1" style="flex-grow: 1;">
+                            <span class="range-value" id="image.hue-value" style="min-width: 30px; text-align: center;">50</span>
+                        </div>
+                
+                        <label for="image.saturation">Image saturation</label>
+                        <div class="form-input-wrapper">
+                            <input type="range" id="image.saturation" min="0" max="100" step="1" style="flex-grow: 1;">
+                            <span class="range-value" id="image.saturation-value" style="min-width: 30px; text-align: center;">50</span>
+                        </div>
+                
+                        <label for="image.luminance">Image luminance</label>
+                        <div class="form-input-wrapper">
+                            <input type="range" id="image.luminance" min="0" max="100" step="1" style="flex-grow: 1;">
+                            <span class="range-value" id="image.luminance-value" style="min-width: 30px; text-align: center;">50</span>
+                        </div>
+                
+                        <label for="image.rotate">Rotate image clockwise</label>
+                        <select id="image.rotate">
+                            <option value="0">0</option>
+                            <option value="90">90</option>
+                            <option value="270">270</option>
+                        </select>
+                
+                        <label for="image.tuning">Automatic image tuning</label>
+                        <div class="form-check-inline">
+                            <input type="checkbox" id="image.tuning" class="form-check-input">
+                        </div>
                     </div>
                 </div>
+
                 <div id="tab-video0" class="tab-content">
-                    <h3>Основной поток</h3>
-                    <div class="form-grid">
-                        <span>Включен</span><input type="checkbox" id="video0.enabled">
-                        <span>Разрешение</span><input type="text" id="video0.size" placeholder="1920x1080">
-                        <span>Кодек</span><select id="video0.codec"><option value="h264">H.264</option><option value="h265">H.265</option></select>
-                        <span>Профиль</span><select id="video0.profile"><option value="base">Base</option><option value="main">Main</option><option value="high">High</option></select>
-                        <span>Частота кадров</span><input type="number" id="video0.fps">
-                        <span>Битрейт (kbps)</span><input type="number" id="video0.bitrate">
-                        <span>Режим битрейта</span><select id="video0.rcMode"><option value="cbr">CBR</option><option value="vbr">VBR</option><option value="avbr">AVBR</option></select>
-                        <span>Интервал I-frame (сек)</span><input type="text" id="video0.gopSize">
-                        <span>Режим GOP</span><select id="video0.gopMode"><option value="normal">Normal</option><option value="dual">Dual</option><option value="smart">Smart</option></select>
-                        <span>Единицы среза</span><input type="number" id="video0.sliceUnits">
-                        <span class="full-width">Обрезка (crop)</span><input type="text" id="video0.crop" placeholder="w:h:x:y" class="full-width">
+                    <h3>Video0 (Main Stream)</h3>
+                    <div class="form-grid simple">
+                        <label for="video0.enabled">Enable video</label>
+                        <div class="form-check-inline"><input type="checkbox" id="video0.enabled" class="form-check-input"></div>
+
+                        <label for="video0.codec">Video codec</label>
+                        <select id="video0.codec"><option value="h264">h264</option><option value="h265">h265</option></select>
+
+                        <label for="video0.size">Video resolution</label>
+                        <input type="text" id="video0.size" placeholder="1920x1080">
+                        
+                        <label for="video0.fps">Video frame rate</label>
+                        <input type="number" id="video0.fps" min="1" max="120" step="1">
+                        
+                        <label for="video0.bitrate">Video bitrate (kbps)</label>
+                        <input type="number" id="video0.bitrate" step="1">
+                        
+                        <label for="video0.rcMode">Rate control mode</label>
+                        <select id="video0.rcMode"><option value="cbr">cbr</option><option value="vbr">vbr</option><option value="avbr">avbr</option></select>
+                        
+                        <label for="video0.profile">Video profile</label>
+                        <select id="video0.profile"><option value="base">base</option><option value="main">main</option><option value="high">high</option></select>
+                        
+                        <label for="video0.gopSize">I-frame interval (s)</label>
+                        <input type="text" id="video0.gopSize">
+                        
+                        <label for="video0.crop">Crop video (WxH@X,Y)</label>
+                        <input type="text" id="video0.crop" placeholder="640x360@0,0">
+                        
+                        <label for="video0.gopMode">GOP mode</label>
+                        <select id="video0.gopMode"><option value="normal">normal</option><option value="dual">dual</option><option value="smart">smart</option></select>
                     </div>
                 </div>
+
                 <div id="tab-video1" class="tab-content">
-                    <h3>Дополнительный поток</h3>
-                    <div class="form-grid">
-                        <span>Включен</span><input type="checkbox" id="video1.enabled">
-                        <span>Разрешение</span><input type="text" id="video1.size" placeholder="704x576">
-                        <span>Кодек</span><select id="video1.codec"><option value="h264">H.264</option><option value="h265">H.265</option></select>
-                        <span>Профиль</span><select id="video1.profile"><option value="base">Base</option><option value="main">Main</option><option value="high">High</option></select>
-                        <span>Частота кадров</span><input type="number" id="video1.fps">
-                        <span>Битрейт (kbps)</span><input type="number" id="video1.bitrate">
-                        <span>Режим битрейта</span><select id="video1.rcMode"><option value="cbr">CBR</option><option value="vbr">VBR</option><option value="avbr">AVBR</option></select>
-                        <span>Интервал I-frame (сек)</span><input type="text" id="video1.gopSize">
-                        <span>Режим GOP</span><select id="video1.gopMode"><option value="normal">Normal</option><option value="dual">Dual</option><option value="smart">Smart</option></select>
-                        <span>Единицы среза</span><input type="number" id="video1.sliceUnits">
-                        <span class="full-width">Обрезка (crop)</span><input type="text" id="video1.crop" placeholder="w:h:x:y" class="full-width">
+                    <h3>Video1 (Sub Stream)</h3>
+                    <div class="form-grid simple">
+                        <label for="video1.enabled">Enable video</label>
+                        <div class="form-check-inline"><input type="checkbox" id="video1.enabled" class="form-check-input"></div>
+
+                        <label for="video1.codec">Video codec</label>
+                        <select id="video1.codec"><option value="h264">h264</option><option value="h265">h265</option></select>
+
+                        <label for="video1.size">Video resolution</label>
+                        <input type="text" id="video1.size" placeholder="704x576">
+                        
+                        <label for="video1.fps">Video frame rate</label>
+                        <input type="number" id="video1.fps" min="1" max="120" step="1">
+                        
+                        <label for="video1.bitrate">Video bitrate (kbps)</label>
+                        <input type="number" id="video1.bitrate" step="1">
+                        
+                        <label for="video1.rcMode">Rate control mode</label>
+                        <select id="video1.rcMode"><option value="cbr">cbr</option><option value="vbr">vbr</option><option value="avbr">avbr</option></select>
+                        
+                        <label for="video1.profile">Video profile</label>
+                        <select id="video1.profile"><option value="base">base</option><option value="main">main</option><option value="high">high</option></select>
+                        
+                        <label for="video1.gopSize">I-frame interval (s)</label>
+                        <input type="text" id="video1.gopSize">
+                        
+                        <label for="video1.crop">Crop video (WxH@X,Y)</label>
+                        <input type="text" id="video1.crop" placeholder="640x360@0,0">
+                        
+                        <label for="video1.gopMode">GOP mode</label>
+                        <select id="video1.gopMode"><option value="normal">normal</option><option value="dual">dual</option><option value="smart">smart</option></select>
                     </div>
                 </div>
+                
                 <div id="tab-jpeg" class="tab-content">
-                    <h3>JPEG поток</h3>
-                    <div class="form-grid">
-                        <span>Включен</span><input type="checkbox" id="jpeg.enabled">
-                        <span>Разрешение</span><input type="text" id="jpeg.size" placeholder="1920x1080">
-                        <span>Качество (1-100)</span><input type="number" id="jpeg.qfactor" min="1" max="100">
-                        <span>Частота кадров</span><input type="number" id="jpeg.fps">
-                        <span>MJPEG через RTSP</span><input type="checkbox" id="jpeg.rtsp">
+                    <h3>JPEG</h3>
+                    <div class="form-grid simple">
+                        <label for="jpeg.enabled">Enable JPEG support</label>
+                        <div class="form-check-inline"><input type="checkbox" id="jpeg.enabled" class="form-check-input"></div>
+
+                        <label for="jpeg.size">JPEG resolution</label>
+                        <input type="text" id="jpeg.size" placeholder="1280x720">
+
+                        <label for="jpeg.qfactor">JPEG quality level</label>
+                        <div class="form-input-wrapper">
+                            <input type="range" id="jpeg.qfactor" min="1" max="100" step="1" style="flex-grow: 1;">
+                            <span class="range-value" id="jpeg.qfactor-value" style="min-width: 30px; text-align: center;">50</span>
+                        </div>
+                        
+                        <label for="jpeg.fps">JPEG frames per second</label>
+                        <div class="form-input-wrapper">
+                            <input type="range" id="jpeg.fps" min="1" max="20" step="1" style="flex-grow: 1;">
+                            <span class="range-value" id="jpeg.fps-value" style="min-width: 30px; text-align: center;">5</span>
+                        </div>
+                        
+                        <label for="jpeg.rtsp">Enable MJPEG over RTSP</label>
+                        <div class="form-check-inline"><input type="checkbox" id="jpeg.rtsp" class="form-check-input"></div>
                     </div>
                 </div>
+
                 <div id="tab-osd" class="tab-content">
                     <h3>OSD</h3>
-                    <div class="form-grid">
-                        <span>Включить OSD</span><input type="checkbox" id="osd.enabled">
-                        <span class="full-width">Шаблон</span><input type="text" id="osd.template" class="full-width">
-                        <span class="full-width">Путь к шрифту</span><input type="text" id="osd.font" class="full-width">
-                        <span>Размер шрифта</span><input type="text" id="osd.size">
-                        <span>Позиция X</span><input type="number" id="osd.posX">
-                        <span>Позиция Y</span><input type="number" id="osd.posY">
-                        <span class="full-width">Маски приватности</span><input type="text" id="osd.privacyMasks" class="full-width">
+                    <div class="form-grid simple">
+                        <label for="osd.enabled">Enable On-Screen Display</label>
+                        <div class="form-check-inline"><input type="checkbox" id="osd.enabled" class="form-check-input"></div>
+
+                        <label for="osd.font">Path to font file</label>
+                        <input type="text" id="osd.font">
+
+                        <label for="osd.template">OSD template</label>
+                        <input type="text" id="osd.template">
+
+                        <label for="osd.size">OSD font size</label>
+                        <input type="text" id="osd.size">
+                        
+                        <label for="osd.posX">Horizontal position</label>
+                        <input type="number" id="osd.posX" step="1">
+                        
+                        <label for="osd.posY">Vertical position</label>
+                        <input type="number" id="osd.posY" step="1">
+
+                        <label for="osd.privacyMasks">Privacy masks</label>
+                        <input type="text" id="osd.privacyMasks" placeholder="x,y,w,h;...">
                     </div>
                 </div>
+
                 <div id="tab-audio" class="tab-content">
-                    <h3>Аудио</h3>
-                    <div class="form-grid">
-                        <span>Включено</span><input type="checkbox" id="audio.enabled">
-                        <span>Кодек</span><select id="audio.codec"><option value="opus">Opus</option><option value="aac">AAC</option><option value="pcm">PCM</option><option value="alaw">G.711A</option><option value="ulaw">G.711U</option></select>
-                        <span>Частота</span><select id="audio.srate"><option value="8000">8000 Hz</option><option value="16000">16000 Hz</option><option value="32000">32000 Hz</option><option value="48000">48000 Hz</option></select>
-                        <span>Громкость входа</span><input type="number" id="audio.volume" min="0" max="100">
-                        <span>Двойной микрофон</span><input type="checkbox" id="audio.dual">
-                        <span>Выход (динамик)</span><input type="checkbox" id="audio.outputEnabled">
-                        <span>Громкость выхода</span><input type="number" id="audio.outputVolume" min="0" max="100">
-                        <span>GPIO пин динамика</span><input type="number" id="audio.speakerPin">
-                        <span>Инверт. пин динамика</span><input type="checkbox" id="audio.speakerPinInvert">
+                    <h3>Audio</h3>
+                    <div class="form-grid simple">
+                        <label for="audio.enabled">Enable microphone</label>
+                        <div class="form-check-inline"><input type="checkbox" id="audio.enabled" class="form-check-input"></div>
+                
+                        <label for="audio.volume">Microphone volume</label>
+                        <div class="form-input-wrapper">
+                            <input type="range" id="audio.volume" min="0" max="100" step="1" style="flex-grow: 1;">
+                            <span class="range-value" id="audio.volume-value" style="min-width: 30px; text-align: center;">70</span>
+                        </div>
+                
+                        <label for="audio.srate">Audio sampling rate</label>
+                        <select id="audio.srate">
+                            <option value="8000">8000</option>
+                            <option value="16000">16000</option>
+                            <option value="32000">32000</option>
+                            <option value="48000">48000</option>
+                        </select>
+                
+                        <label for="audio.codec">Codec for RTSP and MP4</label>
+                        <select id="audio.codec">
+                            <option value="opus">opus</option>
+                            <option value="aac">aac</option>
+                            <option value="pcm">pcm</option>
+                            <option value="alaw">alaw</option>
+                            <option value="ulaw">ulaw</option>
+                        </select>
+                
+                        <label for="audio.outputEnabled">Enable speaker</label>
+                        <div class="form-check-inline"><input type="checkbox" id="audio.outputEnabled" class="form-check-input"></div>
+                
+                        <label for="audio.outputVolume">Speaker volume</label>
+                        <div class="form-input-wrapper">
+                            <input type="range" id="audio.outputVolume" min="0" max="100" step="1" style="flex-grow: 1;">
+                            <span class="range-value" id="audio.outputVolume-value" style="min-width: 30px; text-align: center;">40</span>
+                        </div>
+                
+                        <label for="audio.speakerPin">GPIO pin for speaker</label>
+                        <input type="number" id="audio.speakerPin" step="1">
+                
+                        <label for="audio.speakerPinInvert">Invert speaker control</label>
+                        <div class="form-check-inline"><input type="checkbox" id="audio.speakerPinInvert" class="form-check-input"></div>
+                
+                        <label for="audio.dual">Dual microphone</label>
+                        <div class="form-check-inline"><input type="checkbox" id="audio.dual" class="form-check-input"></div>
                     </div>
                 </div>
+
                 <div id="tab-rtsp" class="tab-content">
                     <h3>RTSP</h3>
-                    <div class="form-grid">
-                        <span>Включен</span><input type="checkbox" id="rtsp.enabled">
-                        <span>Порт</span><input type="number" id="rtsp.port">
+                    <div class="form-grid simple">
+                        <label for="rtsp.enabled">Enable RTSP</label>
+                        <div class="form-check-inline"><input type="checkbox" id="rtsp.enabled" class="form-check-input"></div>
+                        
+                        <label for="rtsp.port">Port for RTSP protocol</label>
+                        <input type="number" id="rtsp.port" min="1" max="65535" step="1">
                     </div>
                 </div>
+
                 <div id="tab-nightMode" class="tab-content">
-                    <h3>Ночной режим</h3>
-                    <div class="form-grid">
-                        <span>Ч/Б изображение</span><input type="checkbox" id="nightMode.colorToGray">
-                        <span>ИК-фильтр, пин 1</span><input type="number" id="nightMode.irCutPin1">
-                        <span>Инверсия пина 1</span><input type="checkbox" id="nightMode.irCutSingleInvert">
-                        <span>ИК-фильтр, пин 2</span><input type="number" id="nightMode.irCutPin2">
-                        <span>Пин подсветки</span><input type="number" id="nightMode.backlightPin">
-                        <span>DRC в ночн. режиме</span><input type="number" id="nightMode.overrideDrc">
-                        <span>Монитор освещенности</span><input type="checkbox" id="nightMode.lightMonitor">
-                        <span>Пин датчика света</span><input type="number" id="nightMode.lightSensorPin">
-                        <span>Инверсия датчика света</span><input type="checkbox" id="nightMode.lightSensorInvert">
-                        <span>Задержка переключения (с)</span><input type="number" id="nightMode.monitorDelay">
-                        <span>Порог (Ночь)</span><input type="number" id="nightMode.minThreshold">
-                        <span>Порог (День)</span><input type="number" id="nightMode.maxThreshold">
+                    <h3>Night Mode</h3>
+                    <div class="form-grid simple">
+                        <label for="nightMode.colorToGray">Colorless night mode</label>
+                        <div class="form-check-inline"><input type="checkbox" id="nightMode.colorToGray" class="form-check-input"></div>
+
+                        <label for="nightMode.irCutPin1">GPIO pin1 for IRcut</label>
+                        <input type="number" id="nightMode.irCutPin1" step="1">
+
+                        <label for="nightMode.irCutSingleInvert">Single IRcut is inverted</label>
+                        <div class="form-check-inline"><input type="checkbox" id="nightMode.irCutSingleInvert" class="form-check-input"></div>
+                        
+                        <label for="nightMode.irCutPin2">GPIO pin2 for IRcut</label>
+                        <input type="number" id="nightMode.irCutPin2" step="1">
+
+                        <label for="nightMode.backlightPin">GPIO pin for camera light</label>
+                        <input type="number" id="nightMode.backlightPin" step="1">
+
+                        <label for="nightMode.overrideDrc">DRC value in night mode</label>
+                        <input type="number" id="nightMode.overrideDrc" step="1">
+                        
+                        <label for="nightMode.lightMonitor">Enable light monitor</label>
+                        <div class="form-check-inline"><input type="checkbox" id="nightMode.lightMonitor" class="form-check-input"></div>
+                        
+                        <label for="nightMode.lightSensorPin">GPIO pin for light sensor</label>
+                        <input type="number" id="nightMode.lightSensorPin" step="1">
+
+                        <label for="nightMode.lightSensorInvert">Light sensor is inverted</label>
+                        <div class="form-check-inline"><input type="checkbox" id="nightMode.lightSensorInvert" class="form-check-input"></div>
+
+                        <label for="nightMode.monitorDelay">Delay before switching</label>
+                        <div class="form-input-wrapper">
+                            <input type="range" id="nightMode.monitorDelay" min="0" max="60" step="1" style="flex-grow: 1;">
+                            <span class="range-value" id="nightMode.monitorDelay-value" style="min-width: 30px; text-align: center;">0</span>
+                        </div>
+                        
+                        <label for="nightMode.minThreshold">Min threshold for day</label>
+                        <input type="number" id="nightMode.minThreshold" step="1">
+                        
+                        <label for="nightMode.maxThreshold">Max threshold for night</label>
+                        <input type="number" id="nightMode.maxThreshold" step="1">
                     </div>
                 </div>
+                
                 <div id="tab-motionDetect" class="tab-content">
-                    <h3>Детектор движения</h3>
-                    <div class="form-grid">
-                        <span>Включен</span><input type="checkbox" id="motionDetect.enabled">
-                        <span>Визуализировать</span><input type="checkbox" id="motionDetect.visualize">
-                        <span>Отладка</span><input type="checkbox" id="motionDetect.debug">
-                        <span class="full-width">Зона интереса (ROI)</span><input type="text" id="motionDetect.roi" class="full-width">
+                    <h3>Motion</h3>
+                    <div class="form-grid simple">
+                        <label for="motionDetect.enabled">Enable motion detection</label>
+                        <div class="form-check-inline">
+                            <input type="checkbox" id="motionDetect.enabled" class="form-check-input">
+                        </div>
+                        
+                        <label for="motionDetect.visualize">Visualize motion detection</label>
+                        <div class="form-check-inline">
+                            <input type="checkbox" id="motionDetect.visualize" class="form-check-input">
+                        </div>
+
+                        <label for="motionDetect.debug">Enable debugging</label>
+                        <div class="form-check-inline">
+                            <input type="checkbox" id="motionDetect.debug" class="form-check-input">
+                        </div>
+                        
+                        <label for="motionDetect.roi">Region of interest</label>
+                        <input type="text" id="motionDetect.roi" placeholder="x,y,w,h;...">
                     </div>
                 </div>
+
                 <div id="tab-records" class="tab-content">
-                    <h3>Запись</h3>
-                    <div class="form-grid">
-                        <span>Включить запись</span><input type="checkbox" id="records.enabled">
-                        <span class="full-width">Путь для записи</span><input type="text" id="records.path" class="full-width">
-                        <span>Лимит файла (мин)</span><input type="number" id="records.split">
-                        <span>Лимит места (%)</span><input type="number" id="records.maxUsage">
-                        <span>Запись доп. потока</span><input type="checkbox" id="records.substream">
+                    <h3>Record</h3>
+                    <div class="form-grid simple">
+                        <label for="records.enabled">Enable recording</label>
+                        <div class="form-check-inline">
+                            <input type="checkbox" id="records.enabled" class="form-check-input">
+                        </div>
+
+                        <label for="records.path">Recording path</label>
+                        <input type="text" id="records.path" placeholder="/mnt/mmcblk0p1/%F">
+
+                        <label for="records.split">File limit in minutes</label>
+                        <input type="number" id="records.split" min="1" step="1">
+
+                        <label for="records.maxUsage">Limit of available space usage (%)</label>
+                        <div class="form-input-wrapper">
+                            <input type="range" id="records.maxUsage" min="1" max="100" step="1" style="flex-grow: 1;">
+                            <span class="range-value" id="records.maxUsage-value" style="min-width: 30px; text-align: center;">95</span>
+                        </div>
+
+                        <label for="records.substream">Record substream</label>
+                        <div class="form-check-inline">
+                            <input type="checkbox" id="records.substream" class="form-check-input">
+                        </div>
                     </div>
                 </div>
+                
                 <div id="tab-outgoing" class="tab-content">
-                    <h3>Исходящие потоки</h3>
-                    <div class="form-grid">
-                        <span>Включить</span><input type="checkbox" id="outgoing.enabled">
-                        <span class="full-width">Адрес сервера (URL)</span><input type="text" id="outgoing.server" class="full-width">
-                        <span>Размер RTP пакета</span><input type="number" id="outgoing.naluSize">
-                        <span>Использовать доп. поток</span><input type="checkbox" id="outgoing.substream">
+                    <h3>Outgoing</h3>
+                    <div class="form-grid simple">
+                        <label for="outgoing.enabled">Enable outgoing streams</label>
+                        <div class="form-check-inline">
+                            <input type="checkbox" id="outgoing.enabled" class="form-check-input">
+                        </div>
+
+                        <label for="outgoing.server">Address for outgoing stream</label>
+                        <input type="text" id="outgoing.server" placeholder="rtmp://...">
+
+                        <label for="outgoing.naluSize">RTP packet size</label>
+                        <input type="number" id="outgoing.naluSize" min="1" step="1">
+
+                        <label for="outgoing.substream">RTMP substream</label>
+                        <div class="form-check-inline">
+                            <input type="checkbox" id="outgoing.substream" class="form-check-input">
+                        </div>
                     </div>
                 </div>
-                <div id="tab-watchdog" class="tab-content"><div class="form-grid"><span>Включен</span><input type="checkbox" id="watchdog.enabled"><span>Таймаут (сек)</span><input type="number" id="watchdog.timeout"></div></div>
-                <div id="tab-hls" class="tab-content"><div class="form-grid"><span>Включен</span><input type="checkbox" id="hls.enabled"></div></div>
-                <div id="tab-onvif" class="tab-content"><div class="form-grid"><span>Включен</span><input type="checkbox" id="onvif.enabled"></div></div>
+                
+                <div id="tab-watchdog" class="tab-content">
+                    <h3>Watchdog</h3>
+                    <div class="form-grid simple">
+                        <label for="watchdog.enabled">Enable Watchdog</label>
+                        <div class="form-check-inline">
+                            <input type="checkbox" id="watchdog.enabled" class="form-check-input">
+                        </div>
+                        
+                        <label for="watchdog.timeout">Watchdog timeout (seconds)</label>
+                        <input type="number" id="watchdog.timeout" min="1" step="1">
+                    </div>
+                </div>
+                
+                <div id="tab-hls" class="tab-content">
+                    <h3>HLS</h3>
+                    <div class="form-grid simple">
+                        <label for="hls.enabled">Enable HTTP Live Streaming</label>
+                        <div class="form-check-inline">
+                            <input type="checkbox" id="hls.enabled" class="form-check-input">
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="tab-onvif" class="tab-content">
+                    <h3>ONVIF</h3>
+                    <div class="form-grid simple">
+                        <label for="onvif.enabled">Enable ONVIF protocol support</label>
+                        <div class="form-check-inline">
+                            <input type="checkbox" id="onvif.enabled" class="form-check-input">
+                        </div>
+                    </div>
+                </div>
+                
                 <div id="tab-ipeye" class="tab-content">
                     <h3>IPEYE</h3>
-                    <div class="form-grid">
-                        <span>Включен</span><input type="checkbox" id="ipeye.enabled">
-                        <span>ID камеры</span><input type="text" id="ipeye.uuid">
+                    <div class="form-grid simple">
+                        <label for="ipeye.enabled">Enable IPEYE protocol support</label>
+                        <div class="form-check-inline">
+                            <input type="checkbox" id="ipeye.enabled" class="form-check-input">
+                        </div>
                     </div>
                 </div>
+
+                <!-- START: MODIFIED SECTION -->
                 <div id="tab-netip" class="tab-content">
                     <h3>NETIP</h3>
-                    <div class="form-grid">
-                        <span>Включить протокол</span><input type="checkbox" id="netip.enabled">
-                        <span>Порт</span><input type="number" id="netip.port">
-                        <span>Имя пользователя</span><input type="text" id="netip.user">
-                        <span>Хеш пароля</span><input type="text" id="netip.password">
-                        <span>Включить снапшоты</span><input type="checkbox" id="netip.snapshots">
-                        <span>Игнор. установку времени</span><input type="checkbox" id="netip.ignoreSetTime">
+                    <div class="form-grid simple">
+                        <label for="netip.enabled">Enable NETIP protocol support</label>
+                        <div class="form-check-inline">
+                            <input type="checkbox" id="netip.enabled" class="form-check-input">
+                        </div>
+
+                        <label for="netip.user">NETIP username</label>
+                        <input type="text" id="netip.user">
+
+                        <label for="netip.password">Hash of password</label>
+                        <input type="text" id="netip.password">
+
+                        <label for="netip.port">NETIP port</label>
+                        <input type="number" id="netip.port" min="1" max="65535" step="1">
+
+                        <label for="netip.snapshots">NETIP snapshots</label>
+                        <div class="form-check-inline">
+                            <input type="checkbox" id="netip.snapshots" class="form-check-input">
+                        </div>
+
+                        <label for="netip.ignoreSetTime">Ignore set time</label>
+                        <div class="form-check-inline">
+                            <input type="checkbox" id="netip.ignoreSetTime" class="form-check-input">
+                        </div>
                     </div>
                 </div>
+                <!-- END: MODIFIED SECTION -->
+
             </div>
             <div class="modal-footer">
                 <button id="save-settings-btn">Сохранить</button>
@@ -386,7 +901,35 @@
         </div>
     </div>
     
+    <div id="archive-modal" class="modal-backdrop hidden">
+        <div class="modal-content archive">
+            <span id="archive-modal-close-btn" class="modal-close-btn">×</span>
+            <div class="archive-container">
+                <div class="archive-list-panel">
+                    <div class="archive-list-header">
+                        <h3>Записи</h3>
+                        <button id="archive-refresh-btn" title="Обновить список"><i class="material-icons">refresh</i></button>
+                    </div>
+                    <ul id="archive-list">
+                    </ul>
+                </div>
+                <div class="archive-player-panel">
+                    <video id="archive-video-player" controls style="display: none;"></video>
+                    <div id="archive-player-placeholder">Выберите запись для просмотра</div>
+                    <div class="archive-player-footer">
+                        <button id="archive-delete-btn" disabled>Удалить</button>
+                        <button id="archive-show-folder-btn" disabled>Показать в папке</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <script src="jsmpeg.min.js"></script>
-    <script src="./renderer.js"></script>
+    <script src="./js/modal-handler.js"></script>
+    <script src="./js/camera-list.js"></script>
+    <script src="./js/grid-manager.js"></script>
+    <script src="./js/archive-manager.js"></script>
+    <script src="./js/renderer.js"></script>
 </body>
 </html>

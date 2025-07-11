@@ -1,4 +1,6 @@
-const { app, BrowserWindow, ipcMain, Menu, clipboard, dialog } = require('electron');
+// main.js
+
+const { app, BrowserWindow, ipcMain, Menu, clipboard, dialog, shell, protocol } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const fsPromises = require('fs').promises;
@@ -8,30 +10,27 @@ const { spawn, exec } = require('child_process');
 const axios = require('axios');
 const { Client } = require('ssh2');
 const WebSocket = require('ws');
-const dgram = require('dgram');
 const crypto = require('crypto');
 const ffmpeg = require('@ffmpeg-installer/ffmpeg');
+const keytar = require('keytar');
 
-// Исправление пути к ffmpeg для упакованного приложения
 const ffmpegPath = ffmpeg.path.replace('app.asar', 'app.asar.unpacked');
 
 let mainWindow = null;
 const streamManager = {};
+const recordingManager = {};
 const usedPorts = new Set();
 const BASE_PORT = 9001;
+const KEYTAR_SERVICE = 'OpenIPC-VMS';
 
 function getDataPath() {
-    // В режиме разработки используем стандартный путь, чтобы не засорять папку проекта
     if (!app.isPackaged) {
         return app.getPath('userData');
     }
-    // В упакованном приложении проверяем наличие файла-маркера
     const portableMarkerPath = path.join(path.dirname(app.getPath('exe')), 'portable.txt');
     if (fs.existsSync(portableMarkerPath)) {
-        // Портативный режим: используем папку с exe
         return path.dirname(app.getPath('exe'));
     } else {
-        // Стандартный режим: используем AppData и т.д.
         return app.getPath('userData');
     }
 }
@@ -40,9 +39,124 @@ const dataPathRoot = getDataPath();
 console.log(`[Config] Data path is: ${dataPathRoot}`);
 
 const configPath = path.join(dataPathRoot, 'config.json');
+const appSettingsPath = path.join(dataPathRoot, 'app-settings.json');
 const oldCamerasPath = path.join(dataPathRoot, 'cameras.json');
 let sshWindows = {};
 let fileManagerConnections = {};
+let appSettingsCache = null;
+
+async function getAppSettings() {
+    if (appSettingsCache) {
+        return appSettingsCache;
+    }
+    try {
+        const data = await fsPromises.readFile(appSettingsPath, 'utf-8');
+        appSettingsCache = JSON.parse(data);
+    } catch (e) {
+        appSettingsCache = { recordingsPath: path.join(app.getPath('videos'), 'OpenIPC-VMS') };
+    }
+    return appSettingsCache;
+}
+
+ipcMain.handle('load-app-settings', getAppSettings);
+
+ipcMain.handle('save-app-settings', async (event, settings) => {
+    try {
+        appSettingsCache = settings;
+        await fsPromises.writeFile(appSettingsPath, JSON.stringify(settings, null, 2));
+        return { success: true };
+    } catch (e) {
+        console.error('Failed to save app settings:', e);
+        return { success: false, error: e.message };
+    }
+});
+
+ipcMain.handle('select-directory', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+        properties: ['openDirectory']
+    });
+    if (canceled || filePaths.length === 0) {
+        return { canceled: true };
+    }
+    return { path: filePaths[0] };
+});
+
+async function startRecording(camera) {
+    if (!camera || !camera.id) {
+        console.error('[REC] Invalid camera object for recording.');
+        return { success: false, error: 'Invalid camera data' };
+    }
+    if (recordingManager[camera.id]) {
+        console.log(`[REC] Recording already in progress for camera ${camera.id}. Skipping.`);
+        return { success: false, error: 'Recording is already in progress' };
+    }
+    const settings = await getAppSettings();
+    const recordingsPath = settings.recordingsPath;
+    try {
+        await fsPromises.mkdir(recordingsPath, { recursive: true });
+    } catch (e) {
+        return { success: false, error: `Failed to create recordings folder: ${e.message}` };
+    }
+    const timestamp = new Date().toISOString().replace(/:/g, '-').slice(0, 19);
+    const saneCameraName = camera.name.replace(/[<>:"/\\|?*]/g, '_');
+    const filename = `${saneCameraName}-${timestamp}.mp4`;
+    const outputPath = path.join(recordingsPath, filename);
+    
+    // ИЗМЕНЕНИЕ: Используем основной поток для записи
+    const streamPath0 = camera.streamPath0 || '/stream0';
+    const streamUrl = `rtsp://${camera.username}:${camera.password}@${camera.ip}:${camera.port || 554}${streamPath0}`;
+    
+    const ffmpegArgs = [
+        '-rtsp_transport', 'tcp', '-i', streamUrl,
+        '-c:v', 'copy', '-c:a', 'aac', '-b:a', '128k',
+        '-movflags', '+faststart', outputPath
+    ];
+    const ffmpegProcess = spawn(ffmpegPath, ffmpegArgs, { detached: false, windowsHide: true });
+    recordingManager[camera.id] = { process: ffmpegProcess, path: outputPath };
+    let ffmpegErrorOutput = '';
+    ffmpegProcess.stderr.on('data', (data) => {
+        ffmpegErrorOutput += data.toString();
+    });
+    ffmpegProcess.on('close', (code) => {
+        console.log(`[REC FFMPEG] Finished for "${camera.name}" with code ${code}.`);
+        delete recordingManager[camera.id];
+        if (mainWindow) {
+            mainWindow.webContents.send('recording-state-change', { 
+                cameraId: camera.id, 
+                recording: false, 
+                path: code === 0 ? outputPath : null,
+                error: code !== 0 ? (ffmpegErrorOutput.trim().split('\n').pop() || `ffmpeg exited with code ${code}`) : null 
+            });
+        }
+    });
+    console.log(`[REC] Starting for "${camera.name}" to ${outputPath}`);
+    if (mainWindow) mainWindow.webContents.send('recording-state-change', { cameraId: camera.id, recording: true });
+    return { success: true };
+}
+
+ipcMain.handle('start-recording', (event, camera) => startRecording(camera));
+
+ipcMain.handle('stop-recording', (event, cameraId) => {
+    const record = recordingManager[cameraId];
+    if (record) {
+        console.log(`[REC] Stopping for camera ${cameraId}.`);
+        record.process.stdin.write('q\n');
+        return { success: true };
+    }
+    return { success: false, error: 'Recording process not found' };
+});
+
+ipcMain.handle('open-recordings-folder', async () => {
+    const settings = await getAppSettings();
+    const recordingsPath = settings.recordingsPath;
+    try {
+        await fsPromises.mkdir(recordingsPath, { recursive: true });
+        shell.openPath(recordingsPath);
+        return { success: true };
+    } catch (e) {
+        return { success: false, error: `Could not open folder: ${e.message}` };
+    }
+});
 
 function isPortInUse(port) {
     return new Promise((resolve) => {
@@ -84,7 +198,6 @@ function createWindow() {
         title: "OpenIPC VMS",
         webPreferences: { preload: path.join(__dirname, 'preload.js') }
     });
-    // mainWindow.setMenu(null);
     mainWindow.loadFile('index.html');
 }
 
@@ -129,8 +242,10 @@ ipcMain.handle('kill-all-ffmpeg', () => {
         const command = process.platform === 'win32' ? `taskkill /IM ${ffmpegProcessName} /F` : `pkill -f ${ffmpegProcessName}`;
         exec(command, (err, stdout, stderr) => {
             Object.values(streamManager).forEach(s => s.wss?.close());
+            Object.values(recordingManager).forEach(rec => rec.process?.kill('SIGKILL'));
             usedPorts.clear();
             Object.keys(streamManager).forEach(key => delete streamManager[key]);
+            Object.keys(recordingManager).forEach(key => delete recordingManager[key]);
             if (err && !stderr.includes('не найден') && !stderr.includes('No matching processes') && !stderr.includes('was not found')) {
                 resolve({ success: false, message: `Ошибка: ${stderr}` });
             } else {
@@ -146,7 +261,15 @@ ipcMain.handle('start-video-stream', async (event, { credentials, streamId }) =>
         return { success: true, wsPort: streamManager[uniqueStreamIdentifier].port };
     }
     const port = credentials.port || '554';
-    const streamUrl = `rtsp://${credentials.username}:${credentials.password}@${credentials.ip}:${port}/stream${streamId}`;
+    
+    // ИЗМЕНЕНИЕ ЗДЕСЬ
+    const streamPath = streamId === 0 
+        ? (credentials.streamPath0 || '/stream0') 
+        : (credentials.streamPath1 || '/stream1');
+        
+    const streamUrl = `rtsp://${credentials.username}:${credentials.password}@${credentials.ip}:${port}${streamPath}`;
+    // КОНЕЦ ИЗМЕНЕНИЯ
+
     const wsPort = await getAndReserveFreePort();
     if (wsPort === null) {
         return { success: false, error: 'Не удалось найти свободный порт.' };
@@ -155,16 +278,16 @@ ipcMain.handle('start-video-stream', async (event, { credentials, streamId }) =>
     wss.on('connection', (ws) => console.log(`[WSS] Client connected to port ${wsPort}`));
     
     const ffmpegArgs = [
+        '-hwaccel', 'none',
         '-loglevel', 'error',
         '-rtsp_transport', 'tcp',
         '-i', streamUrl,
         '-progress', 'pipe:2', 
         '-f', 'mpegts',
-        '-codec:v', 'mpeg1video',
+        '-c:v', 'mpeg1video',
         '-q:v', '4',
-        '-s', streamId === 0 ? '1280x720' : '640x360',
         '-r', '25',
-        '-codec:a', 'mp2',
+        '-c:a', 'mp2',
         '-b:a', '128k',
         '-ar', '44100',
         '-ac', '1',
@@ -242,7 +365,15 @@ ipcMain.handle('stop-video-stream', (event, uniqueStreamIdentifier) => {
 
 ipcMain.handle('save-configuration', async (event, config) => {
     try {
-        await fsPromises.writeFile(configPath, JSON.stringify(config, null, 2));
+        const configToSave = JSON.parse(JSON.stringify(config));
+        
+        for (const camera of configToSave.cameras) {
+            if (camera.password) {
+                await keytar.setPassword(KEYTAR_SERVICE, camera.id.toString(), camera.password);
+                delete camera.password;
+            }
+        }
+        await fsPromises.writeFile(configPath, JSON.stringify(configToSave, null, 2));
         return { success: true };
     } catch (e) {
         return { success: false, error: e.message };
@@ -256,27 +387,61 @@ ipcMain.handle('load-configuration', async () => {
         layout: { cols: 2, rows: 2 },
         gridState: [null, null, null, null]
     };
-    try {
-        await fsPromises.access(configPath);
-        const data = await fsPromises.readFile(configPath, 'utf-8');
-        let config = JSON.parse(data);
-        return { ...defaultConfig, ...config };
-    } catch (e) {
+    let config = defaultConfig;
+    let needsResave = false;
+
+    const migrateOldFile = async () => {
         try {
             await fsPromises.access(oldCamerasPath);
             console.log('Found old cameras.json, attempting migration...');
             const oldData = await fsPromises.readFile(oldCamerasPath, 'utf-8');
             const oldCameras = JSON.parse(oldData);
-            const newConfig = { ...defaultConfig, cameras: oldCameras };
-            await fsPromises.writeFile(configPath, JSON.stringify(newConfig, null, 2));
+            return { ...defaultConfig, cameras: oldCameras };
+        } catch (migrationError) {
+            return null;
+        }
+    };
+    
+    try {
+        await fsPromises.access(configPath);
+        const data = await fsPromises.readFile(configPath, 'utf-8');
+        config = { ...defaultConfig, ...JSON.parse(data) };
+    } catch (e) {
+        const migratedConfig = await migrateOldFile();
+        if (migratedConfig) {
+            config = migratedConfig;
             await fsPromises.rename(oldCamerasPath, `${oldCamerasPath}.bak`);
             console.log('Migration successful');
-            return newConfig;
-        } catch (migrationError) {
+        } else {
             console.log('No existing config found, returning default.');
             return defaultConfig;
         }
     }
+    
+    if (config.cameras && config.cameras.length > 0) {
+        for (const camera of config.cameras) {
+            if (camera.password) {
+                console.log(`Migrating password for camera ${camera.name}...`);
+                await keytar.setPassword(KEYTAR_SERVICE, camera.id.toString(), camera.password);
+                delete camera.password;
+                needsResave = true;
+            }
+            
+            const password = await keytar.getPassword(KEYTAR_SERVICE, camera.id.toString());
+            if (password) {
+                camera.password = password;
+            }
+        }
+    }
+
+    if (needsResave) {
+        console.log('Resaving configuration after password migration.');
+        const configWithoutPasswords = JSON.parse(JSON.stringify(config));
+        configWithoutPasswords.cameras.forEach(c => delete c.password);
+        await fsPromises.writeFile(configPath, JSON.stringify(configWithoutPasswords, null, 2));
+    }
+
+    return config;
 });
 
 ipcMain.handle('get-system-stats', () => {
@@ -346,7 +511,10 @@ ipcMain.handle('restart-majestic', async (event, credentials) => {
 
 ipcMain.handle('get-camera-pulse', async (event, credentials) => {
     try {
-        const response = await axios.get(`http://${credentials.ip}/api/v1/soc`, { ...getAxiosJsonConfig(credentials), timeout: 3000 });
+        const response = await axios.get(`http://${credentials.ip}/api/v1/soc`, { 
+            auth: { username: credentials.username, password: credentials.password },
+            timeout: 3000 
+        });
         return { success: true, soc_temp: response.data.temp_c ? `${response.data.temp_c.toFixed(1)}°C` : null };
     } catch (error) {
         return { error: 'Camera is offline or not responding' };
@@ -546,7 +714,87 @@ ipcMain.handle('open-ssh-terminal', (event, camera) => {
     });
 });
 
-app.whenReady().then(createWindow);
+ipcMain.handle('get-recordings-list', async () => {
+    try {
+        const settings = await getAppSettings();
+        const recordingsPath = settings.recordingsPath;
+        await fsPromises.mkdir(recordingsPath, { recursive: true });
+
+        const dirents = await fsPromises.readdir(recordingsPath, { withFileTypes: true });
+        const videoFiles = await Promise.all(dirents
+            .filter(dirent => dirent.isFile() && dirent.name.endsWith('.mp4'))
+            .map(async (dirent) => {
+                const filePath = path.join(recordingsPath, dirent.name);
+                try {
+                    const stats = await fsPromises.stat(filePath);
+                    return {
+                        name: dirent.name,
+                        size: stats.size,
+                        createdAt: stats.mtime,
+                    };
+                } catch (e) {
+                    console.error(`Could not stat file ${filePath}:`, e);
+                    return null;
+                }
+            }));
+
+        return videoFiles.filter(Boolean).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    } catch (e) {
+        console.error('Failed to get recordings list:', e);
+        return [];
+    }
+});
+
+ipcMain.handle('delete-recording', async (event, filename) => {
+    try {
+        const settings = await getAppSettings();
+        const recordingsPath = settings.recordingsPath;
+        const filePath = path.join(recordingsPath, filename);
+
+        if (path.dirname(filePath) !== path.resolve(recordingsPath)) {
+             throw new Error("Attempt to delete file outside of recordings directory.");
+        }
+
+        await fsPromises.unlink(filePath);
+        return { success: true };
+    } catch (e) {
+        console.error(`Failed to delete recording ${filename}:`, e);
+        return { success: false, error: e.message };
+    }
+});
+
+ipcMain.handle('show-recording-in-folder', async (event, filename) => {
+    try {
+        const settings = await getAppSettings();
+        const recordingsPath = settings.recordingsPath;
+        const filePath = path.join(recordingsPath, filename);
+        
+        shell.showItemInFolder(filePath);
+        return { success: true };
+    } catch(e) {
+        console.error(`Failed to show recording ${filename} in folder:`, e);
+        return { success: false, error: e.message };
+    }
+});
+
+app.whenReady().then(() => {
+    protocol.registerFileProtocol('video-archive', async (request, callback) => {
+        const settings = await getAppSettings();
+        const recordingsPath = settings.recordingsPath;
+        const filename = decodeURIComponent(request.url.replace('video-archive://', ''));
+        const filePath = path.join(recordingsPath, filename);
+        
+        if (path.dirname(filePath) !== path.resolve(recordingsPath)) {
+            console.error("Attempt to access file outside of recordings directory.");
+            return callback({ error: -6 });
+        }
+
+        callback({ path: filePath });
+    });
+
+    createWindow();
+});
+
 app.on('will-quit', () => {
     const command = process.platform === 'win32' ? `taskkill /IM ${path.basename(ffmpegPath)} /F` : `pkill -f ${path.basename(ffmpegPath)}`;
     exec(command);

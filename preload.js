@@ -18,4 +18,22 @@ contextBridge.exposeInMainWorld('api', {
   getCameraInfo: (credentials) => ipcRenderer.invoke('get-camera-info', credentials),
   openFileManager: (camera) => ipcRenderer.invoke('open-file-manager', camera),
   onStreamStats: (callback) => ipcRenderer.on('stream-stats', (event, stats) => callback(stats)),
+  
+  startRecording: (camera) => ipcRenderer.invoke('start-recording', camera),
+  stopRecording: (cameraId) => ipcRenderer.invoke('stop-recording', cameraId),
+  openRecordingsFolder: () => ipcRenderer.invoke('open-recordings-folder'),
+  onRecordingStateChange: (callback) => ipcRenderer.on('recording-state-change', (event, data) => callback(data)),
+  
+  saveAppSettings: (settings) => ipcRenderer.invoke('save-app-settings', settings),
+  loadAppSettings: () => ipcRenderer.invoke('load-app-settings'),
+  selectDirectory: () => ipcRenderer.invoke('select-directory'),
+
+  getRecordingsList: () => ipcRenderer.invoke('get-recordings-list'),
+  deleteRecording: (filename) => ipcRenderer.invoke('delete-recording', filename),
+  showRecordingInFolder: (filename) => ipcRenderer.invoke('show-recording-in-folder', filename),
+
+  setupMotionDetectionWebhook: (camera) => ipcRenderer.invoke('setup-motion-webhook', camera),
+
+  startAiDetection: (camera) => ipcRenderer.invoke('start-ai-detection', camera),
+  stopAiDetection: (cameraId) => ipcRenderer.invoke('stop-ai-detection', cameraId),
 });
