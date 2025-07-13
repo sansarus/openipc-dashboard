@@ -56,3 +56,32 @@ The ready-made installation files for the latest version can be found on the **[
 * [JSMpeg](https://jsmpeg.com /) for video decoding
 * [ssh2](https://github.com/mscdex/ssh2 ) for SSH and SCP
 The finished files will appear in the dist folder.
+
+
+### Launching in development mode
+
+1. Clone the repository:
+    ```bash
+    git clone https://github.com/Rinibr/openipc-dashboard.git
+    cd openipc-dashboard
+    ```
+
+2. Install the dependencies:
+``bash
+npm install
+    ```
+
+3. Launch the app:
+    ```bash
+    npm start
+    ```
+
+### Building the app
+
+To build the installation files for your current platform, run the command:
+
+```bash
+npm run dist
+```
+
+The finished files will appear in the dist folder.
