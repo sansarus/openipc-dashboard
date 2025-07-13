@@ -1,7 +1,6 @@
 # Dashboard
 
 ![OpenIPC Dashboard Screenshot](build/screenshot.png) 
-<!-- Замените URL на прямую ссылку на ваш скриншот, когда загрузите его в репозиторий -->
 
 **Dashboard** is a cross—platform desktop application for easy camera management and monitoring based on the OpenIPC firmware.
 
@@ -20,11 +19,10 @@ The application was created using Electron and provides a single interface for v
 * **Monitoring:** Displays the status (online/offline) and temperature of the SoC camera in real time.
 * **Cross-platform:** Works on Windows, macOS and Linux.
 
-## , Installation
+## Installation
 
-The ready-made installation files for the latest version can be found on the **[Releases] page(https://github.com/Rinibr/openipc-dashboard/releases )**.
+The ready-made installation files for the latest version can be found on the **[Releases] page(https://github.com/openipc/dashboard/releases )**.
 
-<!-- Replace 'Rinibr/openipc-dashboard' with your path if it differs -->
 
 #### Windows
 1. Download the file `OpenIPC-Dashboard-Setup-x.x.x.exe `.
@@ -62,7 +60,7 @@ The finished files will appear in the dist folder.
 
 1. Clone the repository:
     ```bash
-    git clone https://github.com/Rinibr/openipc-dashboard.git
+    git clone https://github.com/openipc/dashboard.git
     cd openipc-dashboard
     ```
 
