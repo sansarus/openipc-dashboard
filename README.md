@@ -3,84 +3,56 @@
 ![OpenIPC Dashboard Screenshot](build/screenshot.png) 
 <!-- Замените URL на прямую ссылку на ваш скриншот, когда загрузите его в репозиторий -->
 
-**Dashboard** — это кросс-платформенное настольное приложение для удобного управления и мониторинга камер на базе прошивки OpenIPC.
+**Dashboard** is a cross—platform desktop application for easy camera management and monitoring based on the OpenIPC firmware.
 
-Приложение создано с использованием Electron и предоставляет единый интерфейс для просмотра видеопотоков, администрирования настроек, работы с файловой системой и прямого доступа к командной строке камеры.
+The application was created using Electron and provides a single interface for viewing video streams, administering settings, working with the file system, and direct access to the camera's command line.
 
 ---
 
-## 🚀 Основные возможности
+## 🚀 Main features
 
-*   **Мульти-просмотр:** Просматривайте до 4-х видеопотоков одновременно в настраиваемой сетке.
-*   **Двойной поток:** Мгновенное переключение между основным (HD) и дополнительным (SD) потоком по двойному клику.
-*   **Полноэкранный режим:** Детализированный просмотр одной камеры на весь экран.
-*   **Встроенный SSH-клиент:** Полноценный терминал для прямого доступа к командной строке камеры без необходимости в сторонних программах.
-*   **Файловый менеджер (SCP):** Удобный двухпанельный менеджер для загрузки прошивок, скачивания записей и управления файлами на камере.
-*   **Редактор настроек:** Графический интерфейс для изменения всех параметров прошивки Majestic (`majestic.yaml`) с группировкой по вкладкам.
-*   **Мониторинг:** Отображение статуса (online/offline) и температуры SoC камеры в реальном времени.
-*   **Кросс-платформенность:** Работает на Windows, macOS и Linux.
+* **Multi-view:** View up to 4 video streams simultaneously in a customizable grid.
+* **Double flow:** Instantly switch between the main (HD) and secondary (SD) streams with a double click.
+* **Full-screen mode:** Detailed full-screen viewing of a single camera.
+* **Built-in SSH client:** A full-fledged terminal for direct access to the camera's command line without the need for third-party programs.
+* **File Manager (SCP):** Convenient two-panel manager for downloading firmware, downloading recordings and managing files on the camera.
+* **Settings Editor:** Graphical interface for changing all parameters of the Majestic firmware (`majestic.yaml`) grouped by tabs.
+* **Monitoring:** Displays the status (online/offline) and temperature of the SoC camera in real time.
+* **Cross-platform:** Works on Windows, macOS and Linux.
 
-## 📥 Установка
+## , Installation
 
-Готовые установочные файлы для последней версии можно найти на странице **[Releases](https://github.com/Rinibr/openipc-dashboard/releases)**.
+The ready-made installation files for the latest version can be found on the **[Releases] page(https://github.com/Rinibr/openipc-dashboard/releases )**.
 
-<!-- Замените 'Rinibr/openipc-dashboard' на свой путь, если он отличается -->
+<!-- Replace 'Rinibr/openipc-dashboard' with your path if it differs -->
 
 #### Windows
-1.  Скачайте файл `OpenIPC-Dashboard-Setup-x.x.x.exe`.
-2.  Запустите установщик и следуйте инструкциям.
+1. Download the file `OpenIPC-Dashboard-Setup-x.x.x.exe `.
+2. Run the installer and follow the instructions.
 
 #### macOS
-1.  Скачайте файл `OpenIPC-Dashboard-x.x.x.dmg`.
-2.  Откройте `.dmg` файл и перетащите `OpenIPC Dashboard.app` в папку "Программы" (Applications).
+1. Download the file `OpenIPC-Dashboard-x.x.x.dmg'.
+2. Open the `.dmg` file and drag and drop the `OpenIPC Dashboard.app' into the Applications folder.
 
 #### Linux
-1.  Скачайте файл `OpenIPC-Dashboard-x.x.x.AppImage`.
-2.  Сделайте файл исполняемым:
+1. Download the file `OpenIPC-Dashboard-x.x.x.AppImage'.
+2. Make the file executable:
     ```bash
     chmod +x OpenIPC-Dashboard-x.x.x.AppImage
     ```
-3.  Запустите приложение:
+3. Launch the app:
     ```bash
     ./OpenIPC-Dashboard-x.x.x.AppImage
     ```
 
 ---
 
-## 🛠️ Для разработчиков
+## 🛠️ For developers
 
-### Стек технологий
+### Technology stack
 *   [Electron](https://www.electronjs.org/)
 *   [Node.js](https://nodejs.org/)
 *   HTML, CSS, JavaScript (Vanilla JS)
-*   [JSMpeg](https://jsmpeg.com/) для декодирования видео
-*   [ssh2](https://github.com/mscdex/ssh2) для SSH и SCP
-*   [electron-builder](https://www.electron.build/) для сборки
-
-### Запуск в режиме разработки
-
-1.  Клонируйте репозиторий:
-    ```bash
-    git clone https://github.com/Rinibr/openipc-dashboard.git
-    cd openipc-dashboard
-    ```
-
-2.  Установите зависимости:
-    ```bash
-    npm install
-    ```
-
-3.  Запустите приложение:
-    ```bash
-    npm start
-    ```
-
-### Сборка приложения
-
-Для сборки установочных файлов для вашей текущей платформы выполните команду:
-
-```bash
-npm run dist
-```
-
-Готовые файлы появятся в папке dist
+* [JSMpeg](https://jsmpeg.com /) for video decoding
+* [ssh2](https://github.com/mscdex/ssh2 ) for SSH and SCP
+The finished files will appear in the dist folder.
