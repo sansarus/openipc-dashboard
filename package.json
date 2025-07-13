@@ -1,6 +1,6 @@
 {
   "name": "openipc-dashboard",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "description": "App for managing OpenIPC cameras",
   "main": "main.js",
   "scripts": {
@@ -22,13 +22,13 @@
     "@xterm/xterm": "^5.5.0",
     "axios": "^1.6.8",
     "express": "^4.19.2",
-    "keytar": "^7.9.0", 
+    "keytar": "^7.9.0",
     "ssh2": "^1.15.0",
     "ws": "^8.17.1"
   },
   "build": {
     "appId": "com.vavol.openipcdashboard",
-    "productName": "OpenIPC Dashboard",
+    "productName": "DASHBOARD for OpenIPC",
     "copyright": "Copyright © 2025 Rinat Ibragimov",
     "directories": {
       "output": "dist",

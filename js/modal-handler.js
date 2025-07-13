@@ -22,6 +22,7 @@
         const settingsToast = document.getElementById('settings-toast');
         const recordingsPathInput = document.getElementById('app-settings-recordings-path');
         const selectRecPathBtn = document.getElementById('select-rec-path-btn');
+        const languageSelect = document.getElementById('app-settings-language'); // НОВЫЙ ЭЛЕМЕНТ
         let toastTimeout;
 
         let editingCameraId = null;
@@ -82,7 +83,7 @@
             editingCameraId = cameraToEdit && cameraToEdit.id ? cameraToEdit.id : null;
             const modalTitle = document.getElementById('add-modal-title');
             const camera = cameraToEdit || {};
-            modalTitle.textContent = editingCameraId ? 'Редактировать камеру' : 'Добавить новую камеру';
+            modalTitle.textContent = editingCameraId ? App.t('edit_camera_title') : App.t('add_camera_title');
             document.getElementById('new-cam-name').value = camera.name || '';
             document.getElementById('new-cam-ip').value = camera.ip || '';
             document.getElementById('new-cam-port').value = camera.port || '554';
@@ -106,7 +107,7 @@
             };
 
             if (!cameraData.name || !cameraData.ip) {
-                alert('Название и IP-адрес обязательны!');
+                alert(App.t('name_and_ip_required'));
                 return;
             }
 
@@ -146,7 +147,7 @@
         
             if (!isGeneralSettings && !camera) return;
         
-            document.getElementById('settings-modal-title').textContent = isGeneralSettings ? 'Общие настройки' : `Настройки: ${camera.name}`;
+            document.getElementById('settings-modal-title').textContent = isGeneralSettings ? App.t('general_settings_title') : `${App.t('camera_settings_title_prefix')}: ${camera.name}`;
             
             const tabsContainer = settingsModal.querySelector('.tabs');
             const allTabs = tabsContainer.querySelectorAll('.tab-button');
@@ -169,18 +170,19 @@
             }
         
             recordingsPathInput.value = App.appSettings.recordingsPath || '';
+            languageSelect.value = App.appSettings.language || 'en'; // Устанавливаем язык
             restartMajesticBtn.style.display = isGeneralSettings ? 'none' : 'inline-flex';
             
             openModal(settingsModal);
             
             if (isGeneralSettings) {
                 saveSettingsBtn.disabled = false;
-                saveSettingsBtn.textContent = 'Сохранить';
+                saveSettingsBtn.textContent = App.t('save');
                 return;
             }
             
             saveSettingsBtn.disabled = true;
-            saveSettingsBtn.textContent = 'Загрузка...';
+            saveSettingsBtn.textContent = App.t('loading_text');
         
             try {
                 const settings = await window.api.getCameraSettings(camera);
@@ -225,7 +227,6 @@
                         setFormValue('ipeye.enabled', settings.ipeye.enabled);
                     }
 
-                    // START: MODIFIED SECTION
                     if (settings.netip) {
                         setFormValue('netip.enabled', settings.netip.enabled);
                         setFormValue('netip.user', settings.netip.user);
@@ -234,7 +235,6 @@
                         setFormValue('netip.snapshots', settings.netip.snapshots);
                         setFormValue('netip.ignoreSetTime', settings.netip.ignoreSetTime);
                     }
-                    // END: MODIFIED SECTION
                     
                     if (settings.system) {
                         setFormValue('system.webPort', settings.system.webPort);
@@ -346,38 +346,41 @@
                         setupRangeSync('nightMode.monitorDelay')(settings.nightMode.monitorDelay);
                     }
                     
-                    console.log('Настройки камеры загружены:', settings);
+                    console.log('Camera settings loaded:', settings);
                     initialSettings = settings;
                 } else {
-                    throw new Error(settings?.error || 'Неизвестная ошибка');
+                    throw new Error(settings?.error || App.t('unknown_error'));
                 }
             } catch (e) {
-                alert('Не удалось загрузить текущие настройки: ' + e.message);
+                alert(`${App.t('loading_settings_error')}: ${e.message}`);
                 closeModal(settingsModal);
             } finally {
                 saveSettingsBtn.disabled = false;
-                saveSettingsBtn.textContent = 'Сохранить';
+                saveSettingsBtn.textContent = App.t('save');
             }
         }
 
         async function saveSettings() {
             saveSettingsBtn.disabled = true;
-            saveSettingsBtn.textContent = 'Сохранение...';
-        
+            saveSettingsBtn.textContent = App.t('saving_text');
+            
+            // Сохраняем общие настройки приложения
             App.appSettings.recordingsPath = recordingsPathInput.value.trim();
+            App.appSettings.language = languageSelect.value;
             await window.api.saveAppSettings(App.appSettings);
-        
+            
+            // Если это были только общие настройки, выходим
             if (settingsCameraId === null) { 
                 saveSettingsBtn.disabled = false;
-                saveSettingsBtn.textContent = 'Сохранить';
-                showToast('Общие настройки сохранены!');
+                saveSettingsBtn.textContent = App.t('save');
+                showToast(App.t('app_settings_saved_success'));
                 return;
             }
         
             const camera = App.cameras.find(c => c.id === settingsCameraId);
             if (!camera) {
                 saveSettingsBtn.disabled = false;
-                saveSettingsBtn.textContent = 'Сохранить';
+                saveSettingsBtn.textContent = App.t('save');
                 return;
             }
             
@@ -388,40 +391,31 @@
             };
 
             const settingsDataToSend = {
+                // ... (все ключи настроек камеры остаются без изменений)
                 'motionDetect.enabled': getFormValue('motionDetect.enabled'),
                 'motionDetect.visualize': getFormValue('motionDetect.visualize'),
                 'motionDetect.debug': getFormValue('motionDetect.debug'),
                 'motionDetect.roi': getFormValue('motionDetect.roi'),
-
                 'records.enabled': getFormValue('records.enabled'),
                 'records.path': getFormValue('records.path'),
                 'records.split': getFormValue('records.split'),
                 'records.maxUsage': getFormValue('records.maxUsage'),
                 'records.substream': getFormValue('records.substream'),
-                
                 'outgoing.enabled': getFormValue('outgoing.enabled'),
                 'outgoing.server': getFormValue('outgoing.server'),
                 'outgoing.naluSize': getFormValue('outgoing.naluSize'),
                 'outgoing.substream': getFormValue('outgoing.substream'),
-                
                 'watchdog.enabled': getFormValue('watchdog.enabled'),
                 'watchdog.timeout': getFormValue('watchdog.timeout'),
-                
                 'hls.enabled': getFormValue('hls.enabled'),
-                
                 'onvif.enabled': getFormValue('onvif.enabled'),
-                
                 'ipeye.enabled': getFormValue('ipeye.enabled'),
-                
-                // START: MODIFIED SECTION
                 'netip.enabled': getFormValue('netip.enabled'),
                 'netip.user': getFormValue('netip.user'),
                 'netip.password': getFormValue('netip.password'),
                 'netip.port': getFormValue('netip.port'),
                 'netip.snapshots': getFormValue('netip.snapshots'),
                 'netip.ignoreSetTime': getFormValue('netip.ignoreSetTime'),
-                // END: MODIFIED SECTION
-
                 'system.webPort': getFormValue('system.webPort'),
                 'system.httpsPort': getFormValue('system.httpsPort'),
                 'system.httpsCertificate': getFormValue('system.httpsCertificate'),
@@ -507,16 +501,16 @@
             if (Object.keys(settingsDataToSend).length > 0) {
                 const result = await window.api.setCameraSettings({ credentials: camera, settingsData: settingsDataToSend });
                 if (result.success) {
-                    showToast('Настройки камеры успешно сохранены!');
+                    showToast(App.t('camera_settings_saved_success'));
                 } else {
-                    showToast(`Ошибка сохранения настроек камеры: ${result.error}`, true);
+                    showToast(`${App.t('save_settings_error')}: ${result.error}`, true);
                 }
             } else {
-                showToast('Настройки сохранены в приложении.', false);
+                showToast(App.t('app_settings_saved_success'), false);
             }
         
             saveSettingsBtn.disabled = false;
-            saveSettingsBtn.textContent = 'Сохранить';
+            saveSettingsBtn.textContent = App.t('save');
         }
 
         async function restartMajestic() {
@@ -526,7 +520,7 @@
             restartMajesticBtn.disabled = true;
             const result = await window.api.restartMajestic(camera);
             restartMajesticBtn.disabled = false;
-            showToast(result.success ? 'Команда на перезапуск отправлена.' : `Ошибка: ${result.error}`, !result.success);
+            showToast(result.success ? App.t('restart_command_sent') : `${App.t('restart_error')}: ${result.error}`, !result.success);
         }
 
         function openAddGroupModal() {
@@ -538,7 +532,7 @@
         function saveNewGroup() {
             const name = newGroupNameInput.value.trim();
             if (!name) {
-                alert('Название группы не может быть пустым.');
+                alert(App.t('group_name_empty_error'));
                 return;
             }
             const newGroup = {
@@ -570,6 +564,11 @@
             
             generalSettingsBtn.addEventListener('click', () => openSettingsModal(null));
 
+            // НОВЫЙ ОБРАБОТЧИК: Смена языка
+            languageSelect.addEventListener('change', async (e) => {
+                await App.i18n.setLanguage(e.target.value);
+            });
+
             selectRecPathBtn.addEventListener('click', async () => {
                 const result = await window.api.selectDirectory();
                 if (!result.canceled) {
@@ -581,7 +580,7 @@
             saveSettingsBtn.addEventListener('click', saveSettings);
             restartMajesticBtn.addEventListener('click', restartMajestic);
             killAllBtnModal.addEventListener('click', async () => {
-                 if (confirm('Это принудительно завершит все процессы ffmpeg. Используйте, если потоки зависли. Продолжить?')) {
+                 if (confirm(App.t('kill_all_confirm'))) {
                     const result = await window.api.killAllFfmpeg();
                     alert(result.message);
                     window.location.reload();

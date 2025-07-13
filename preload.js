@@ -12,7 +12,7 @@ contextBridge.exposeInMainWorld('api', {
   restartMajestic: (credentials) => ipcRenderer.invoke('restart-majestic', credentials),
   getCameraPulse: (credentials) => ipcRenderer.invoke('get-camera-pulse', credentials),
   openSshTerminal: (camera) => ipcRenderer.invoke('open-ssh-terminal', camera),
-  showCameraContextMenu: (cameraId) => ipcRenderer.send('show-camera-context-menu', cameraId),
+  showCameraContextMenu: (data) => ipcRenderer.send('show-camera-context-menu', data),
   onContextMenuCommand: (callback) => ipcRenderer.on('context-menu-command', (event, args) => callback(args)),
   onStreamDied: (callback) => ipcRenderer.on('stream-died', (event, uniqueStreamId) => callback(uniqueStreamId)),
   getCameraInfo: (credentials) => ipcRenderer.invoke('get-camera-info', credentials),

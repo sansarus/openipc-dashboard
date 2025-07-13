@@ -1,3 +1,5 @@
+// js/camera-list.js
+
 (function(window) {
     window.AppModules = window.AppModules || {};
 
@@ -16,7 +18,7 @@
     }
 
     async function deleteCamera(cameraId) {
-        if (confirm('Вы уверены, что хотите удалить эту камеру?')) {
+        if (confirm(App.t('confirm_delete_camera'))) {
             if (App.recordingStates[cameraId]) {
                 await window.api.stopRecording(cameraId);
             }
@@ -88,12 +90,12 @@
 
         const ungroupedCameras = App.cameras.filter(c => !c.groupId);
         if (ungroupedCameras.length > 0) {
-            const ungroupedPseudoGroup = { id: null, name: 'Камеры без группы' };
+            const ungroupedPseudoGroup = { id: null, name: App.t('ungrouped_cameras') };
             cameraListContainer.appendChild(createGroupHTML(ungroupedPseudoGroup, ungroupedCameras));
         }
 
         if (cameraListContainer.innerHTML === '') {
-            cameraListContainer.innerHTML = '<p style="padding: 10px; color: var(--text-secondary);">Камер и групп нет.</p>';
+            cameraListContainer.innerHTML = `<p style="padding: 10px; color: var(--text-secondary);">${App.t('no_cameras_or_groups')}</p>`;
         }
 
         pollCameraStatuses();
@@ -109,14 +111,43 @@
     function init() {
         openRecordingsBtn.addEventListener('click', () => window.api.openRecordingsFolder());
         
+        cameraListContainer.addEventListener('contextmenu', (e) => {
+            const cameraItem = e.target.closest('.camera-item');
+            if (cameraItem) {
+                e.preventDefault();
+                const cameraId = parseInt(cameraItem.dataset.cameraId, 10);
+                const labels = {
+                    files: `🗂️  ${App.t('context_file_manager')}`,
+                    ssh: `💻  ${App.t('context_ssh')}`,
+                    settings: `⚙️  ${App.t('context_settings')}`,
+                    edit: `✏️  ${App.t('context_edit')}`,
+                    delete: `🗑️  ${App.t('context_delete')}`
+                };
+                window.api.showCameraContextMenu({ cameraId, labels });
+            }
+        });
+
         window.api.onContextMenuCommand(({ command, cameraId }) => {
             const camera = App.cameras.find(c => c.id === cameraId);
             if (!camera) return;
+
+            // Создаем чистый объект для передачи через IPC
+            const cameraData = {
+                id: camera.id,
+                name: camera.name,
+                ip: camera.ip,
+                port: camera.port,
+                username: camera.username,
+                password: camera.password,
+                streamPath0: camera.streamPath0,
+                streamPath1: camera.streamPath1
+            };
+
             switch(command) {
-                case 'files': window.api.openFileManager(camera); break;
-                case 'ssh': window.api.openSshTerminal(camera); break;
+                case 'files': window.api.openFileManager(cameraData); break;
+                case 'ssh': window.api.openSshTerminal(cameraData); break;
                 case 'settings': App.modalHandler.openSettingsModal(cameraId); break;
-                case 'edit': App.modalHandler.openAddModal(camera); break;
+                case 'edit': App.modalHandler.openAddModal(cameraData); break;
                 case 'delete': deleteCamera(cameraId); break;
             }
         });

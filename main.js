@@ -14,6 +14,11 @@ const crypto = require('crypto');
 const ffmpeg = require('@ffmpeg-installer/ffmpeg');
 const keytar = require('keytar');
 
+// Отключаем sandbox для Linux, чтобы избежать проблем с AppImage
+if (process.platform === 'linux') {
+    app.commandLine.appendSwitch('--no-sandbox');
+}
+
 const ffmpegPath = ffmpeg.path.replace('app.asar', 'app.asar.unpacked');
 
 let mainWindow = null;
@@ -102,7 +107,6 @@ async function startRecording(camera) {
     const filename = `${saneCameraName}-${timestamp}.mp4`;
     const outputPath = path.join(recordingsPath, filename);
     
-    // ИЗМЕНЕНИЕ: Используем основной поток для записи
     const streamPath0 = camera.streamPath0 || '/stream0';
     const streamUrl = `rtsp://${camera.username}:${camera.password}@${camera.ip}:${camera.port || 554}${streamPath0}`;
     
@@ -195,7 +199,7 @@ function createWindow() {
         height: 900,
         minWidth: 1024,
         minHeight: 768,
-        title: "OpenIPC VMS",
+        title: "DASHBOARD for OpenIPC",
         webPreferences: { preload: path.join(__dirname, 'preload.js') }
     });
     mainWindow.loadFile('index.html');
@@ -223,14 +227,14 @@ function createFileManagerWindow(camera) {
     return fileManagerWindow;
 }
 
-ipcMain.on('show-camera-context-menu', (event, cameraId) => {
+ipcMain.on('show-camera-context-menu', (event, { cameraId, labels }) => {
     const template = [
-        { label: '🗂️  Файловый менеджер', click: () => { event.sender.send('context-menu-command', { command: 'files', cameraId }); } },
-        { label: '💻  SSH Терминал', click: () => { event.sender.send('context-menu-command', { command: 'ssh', cameraId }); } },
-        { label: '⚙️  Настройки', click: () => { event.sender.send('context-menu-command', { command: 'settings', cameraId }); } },
-        { label: '✏️  Редактировать', click: () => { event.sender.send('context-menu-command', { command: 'edit', cameraId }); } },
+        { label: labels.files, click: () => { event.sender.send('context-menu-command', { command: 'files', cameraId }); } },
+        { label: labels.ssh, click: () => { event.sender.send('context-menu-command', { command: 'ssh', cameraId }); } },
+        { label: labels.settings, click: () => { event.sender.send('context-menu-command', { command: 'settings', cameraId }); } },
+        { label: labels.edit, click: () => { event.sender.send('context-menu-command', { command: 'edit', cameraId }); } },
         { type: 'separator' },
-        { label: '🗑️  Удалить', click: () => { event.sender.send('context-menu-command', { command: 'delete', cameraId }); } },
+        { label: labels.delete, click: () => { event.sender.send('context-menu-command', { command: 'delete', cameraId }); } },
     ];
     const menu = Menu.buildFromTemplate(template);
     menu.popup({ window: BrowserWindow.fromWebContents(event.sender) });
@@ -262,17 +266,15 @@ ipcMain.handle('start-video-stream', async (event, { credentials, streamId }) =>
     }
     const port = credentials.port || '554';
     
-    // ИЗМЕНЕНИЕ ЗДЕСЬ
     const streamPath = streamId === 0 
         ? (credentials.streamPath0 || '/stream0') 
         : (credentials.streamPath1 || '/stream1');
         
     const streamUrl = `rtsp://${credentials.username}:${credentials.password}@${credentials.ip}:${port}${streamPath}`;
-    // КОНЕЦ ИЗМЕНЕНИЯ
 
     const wsPort = await getAndReserveFreePort();
     if (wsPort === null) {
-        return { success: false, error: 'Не удалось найти свободный порт.' };
+        return { success: false, error: 'Failed to find a free port.' };
     }
     const wss = new WebSocket.Server({ port: wsPort });
     wss.on('connection', (ws) => console.log(`[WSS] Client connected to port ${wsPort}`));
@@ -478,7 +480,7 @@ ipcMain.handle('get-camera-settings', async (event, credentials) => {
         const response = await axios.get(`http://${credentials.ip}/api/v1/config.json`, getAxiosJsonConfig(credentials));
         return response.data;
     } catch (error) {
-        return { error: `Не удалось получить настройки: ${error.message}` };
+        return { error: `Failed to get settings: ${error.message}` };
     }
 });
 

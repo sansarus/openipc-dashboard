@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' video-archive:; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' ws://localhost:*; img-src 'self' data:;">
-    <title>OpenIPC VMS</title>
+    <title>DASHBOARD for OpenIPC</title>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <style>
         :root {
@@ -145,7 +145,7 @@
         .form-grid.simple { grid-template-columns: 120px 1fr; }
         .form-grid.with-button .form-input-wrapper { display: flex; gap: 5px; align-items: center; }
         .form-grid.with-button .form-input-wrapper input { flex-grow: 1; }
-        .form-grid label, .form-grid span { font-weight: 500; }
+        .form-grid label, .form-grid span, .form-grid b { font-weight: 500; }
         .form-grid .full-width { grid-column: 1 / -1; }
         .form-grid input, .form-grid select, .form-grid button { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; width: 100%; box-sizing: border-box; }
         .form-buttons { grid-column: 1 / -1; display: flex; gap: 10px; margin-top: 20px; }
@@ -276,9 +276,9 @@
 </head>
 <body>
     <div class="header">
-        <div class="logo">OpenIPC VMS</div>
+        <div class="logo" data-i18n-key="app_title"></div>
         <div class="tabs">
-            <button class="tab active">Монитор</button>
+            <button class="tab active" data-i18n-key="tab_monitor"></button>
         </div>
     </div>
     <div class="main-container">
@@ -287,11 +287,11 @@
         </div>
         <div class="sidebar">
             <div class="sidebar-header">
-                <h3>Устройства</h3>
+                <h3 data-i18n-key="devices"></h3>
                 <div class="header-buttons">
-                    <button id="add-group-btn" class="icon-button" title="Создать новую группу"><i class="material-icons">create_new_folder</i></button>
-                    <button id="add-camera-sidebar-btn" class="icon-button" title="Добавить новую камеру"><i class="material-icons">add_circle_outline</i></button>
-                    <button id="general-settings-btn" class="icon-button" title="Общие настройки"><i class="material-icons">settings</i></button>
+                    <button id="add-group-btn" class="icon-button" data-i18n-tooltip="create_group_tooltip"><i class="material-icons">create_new_folder</i></button>
+                    <button id="add-camera-sidebar-btn" class="icon-button" data-i18n-tooltip="add_camera_tooltip"><i class="material-icons">add_circle_outline</i></button>
+                    <button id="general-settings-btn" class="icon-button" data-i18n-tooltip="settings_tooltip"><i class="material-icons">settings</i></button>
                 </div>
             </div>
             <div id="camera-list-container"></div>
@@ -299,9 +299,9 @@
     </div>
     <div class="bottom-toolbar">
         <div class="toolbar-group">
-            <button id="open-recordings-btn" class="icon-button" title="Открыть папку с записями"><i class="material-icons" style="font-size: 20px;">folder</i></button>
-            <button id="open-archive-btn" class="icon-button" title="Архив записей"><i class="material-icons" style="font-size: 20px;">archive</i></button>
-            <div class="status-info" id="status-info">CPU: -- | RAM: --</div>
+            <button id="open-recordings-btn" class="icon-button" data-i18n-tooltip="open_recordings_tooltip"><i class="material-icons" style="font-size: 20px;">folder</i></button>
+            <button id="open-archive-btn" class="icon-button" data-i18n-tooltip="archive_tooltip"><i class="material-icons" style="font-size: 20px;">archive</i></button>
+            <div class="status-info" id="status-info"></div>
         </div>
         <div class="toolbar-group" id="layout-controls"></div>
     </div>
@@ -310,21 +310,21 @@
     <div id="add-camera-modal" class="modal-backdrop hidden">
         <div class="modal-content">
             <span id="add-modal-close-btn" class="modal-close-btn">×</span>
-            <h2 id="add-modal-title">Добавить новую камеру</h2>
+            <h2 id="add-modal-title"></h2>
             <div class="form-grid simple">
-                <b>Название:</b> <input type="text" id="new-cam-name" placeholder="Камера в коридоре">
-                <b>IP Адрес:</b>  <input type="text" id="new-cam-ip" placeholder="192.168.1.100">
-                <b>RTSP Порт:</b> <input type="number" id="new-cam-port" placeholder="554">
-                <b>Логин:</b>     <input type="text" id="new-cam-user" value="root">
-                <b>Пароль:</b>    <input type="password" id="new-cam-pass">
-                <b>Путь к HD потоку:</b>
+                <b data-i18n-key="camera_name"></b> <input type="text" id="new-cam-name" data-i18n-placeholder="camera_name_placeholder">
+                <b data-i18n-key="ip_address"></b>  <input type="text" id="new-cam-ip" placeholder="192.168.1.100">
+                <b data-i18n-key="rtsp_port"></b> <input type="number" id="new-cam-port" placeholder="554">
+                <b data-i18n-key="login"></b>     <input type="text" id="new-cam-user" value="root">
+                <b data-i18n-key="password"></b>    <input type="password" id="new-cam-pass">
+                <b data-i18n-key="stream_path_hd"></b>
                 <input type="text" id="new-cam-stream-path0" placeholder="/stream0">
-                <b>Путь к SD потоку:</b>
+                <b data-i18n-key="stream_path_sd"></b>
                 <input type="text" id="new-cam-stream-path1" placeholder="/stream1">
                 <b></b>
                 <div class="form-buttons">
-                    <button id="save-camera-btn">Сохранить</button>
-                    <button id="cancel-camera-btn" style="background-color: #6c757d;">Отмена</button>
+                    <button id="save-camera-btn" data-i18n-key="save"></button>
+                    <button id="cancel-camera-btn" style="background-color: #6c757d;" data-i18n-key="cancel"></button>
                 </div>
             </div>
         </div>
@@ -333,33 +333,38 @@
     <div id="settings-modal" class="modal-backdrop hidden">
         <div class="modal-content large">
             <span id="settings-modal-close-btn" class="modal-close-btn">×</span>
-            <h2 id="settings-modal-title">Настройки</h2>
+            <h2 id="settings-modal-title"></h2>
             <div class="modal-body">
                 <div class="tabs">
-                    <button class="tab-button" data-tab="tab-general">Общие</button>
-                    <button class="tab-button" data-tab="tab-system">System</button>
-                    <button class="tab-button" data-tab="tab-isp">ISP</button>
-                    <button class="tab-button" data-tab="tab-image">Image</button>
-                    <button class="tab-button" data-tab="tab-video0">Video0</button>
-                    <button class="tab-button" data-tab="tab-video1">Video1</button>
-                    <button class="tab-button" data-tab="tab-jpeg">JPEG</button>
-                    <button class="tab-button" data-tab="tab-osd">OSD</button>
-                    <button class="tab-button" data-tab="tab-audio">Audio</button>
-                    <button class="tab-button" data-tab="tab-rtsp">RTSP</button>
-                    <button class="tab-button" data-tab="tab-nightMode">Night</button>
-                    <button class="tab-button" data-tab="tab-motionDetect">Motion</button>
-                    <button class="tab-button" data-tab="tab-records">Record</button>
-                    <button class="tab-button" data-tab="tab-outgoing">Outgoing</button>
-                    <button class="tab-button" data-tab="tab-watchdog">Watchdog</button>
-                    <button class="tab-button" data-tab="tab-hls">HLS</button>
-                    <button class="tab-button" data-tab="tab-onvif">ONVIF</button>
-                    <button class="tab-button" data-tab="tab-ipeye">IPEYE</button>
-                    <button class="tab-button" data-tab="tab-netip">NETIP</button>
+                    <button class="tab-button" data-tab="tab-general" data-i18n-key="settings_tab_general"></button>
+                    <button class="tab-button" data-tab="tab-system" data-i18n-key="settings_tab_system"></button>
+                    <button class="tab-button" data-tab="tab-isp" data-i18n-key="settings_tab_isp"></button>
+                    <button class="tab-button" data-tab="tab-image" data-i18n-key="settings_tab_image"></button>
+                    <button class="tab-button" data-tab="tab-video0" data-i18n-key="settings_tab_video0"></button>
+                    <button class="tab-button" data-tab="tab-video1" data-i18n-key="settings_tab_video1"></button>
+                    <button class="tab-button" data-tab="tab-jpeg" data-i18n-key="settings_tab_jpeg"></button>
+                    <button class="tab-button" data-tab="tab-osd" data-i18n-key="settings_tab_osd"></button>
+                    <button class="tab-button" data-tab="tab-audio" data-i18n-key="settings_tab_audio"></button>
+                    <button class="tab-button" data-tab="tab-rtsp" data-i18n-key="settings_tab_rtsp"></button>
+                    <button class="tab-button" data-tab="tab-nightMode" data-i18n-key="settings_tab_night"></button>
+                    <button class="tab-button" data-tab="tab-motionDetect" data-i18n-key="settings_tab_motion"></button>
+                    <button class="tab-button" data-tab="tab-records" data-i18n-key="settings_tab_record"></button>
+                    <button class="tab-button" data-tab="tab-outgoing" data-i18n-key="settings_tab_outgoing"></button>
+                    <button class="tab-button" data-tab="tab-watchdog" data-i18n-key="settings_tab_watchdog"></button>
+                    <button class="tab-button" data-tab="tab-hls" data-i18n-key="settings_tab_hls"></button>
+                    <button class="tab-button" data-tab="tab-onvif" data-i18n-key="settings_tab_onvif"></button>
+                    <button class="tab-button" data-tab="tab-ipeye" data-i18n-key="settings_tab_ipeye"></button>
+                    <button class="tab-button" data-tab="tab-netip" data-i18n-key="settings_tab_netip"></button>
                 </div>
                 <div id="tab-general" class="tab-content">
-                    <h3>Общие настройки приложения</h3>
+                    <h3 data-i18n-key="settings_app_header"></h3>
                     <div class="form-grid simple with-button">
-                        <span>Папка для записей</span>
+                        <span data-i18n-key="settings_language"></span>
+                        <select id="app-settings-language">
+                            <option value="en">English</option>
+                            <option value="ru">Русский</option>
+                        </select>
+                        <span data-i18n-key="settings_recordings_folder"></span>
                         <div class="form-input-wrapper">
                            <input type="text" id="app-settings-recordings-path" readonly>
                            <button id="select-rec-path-btn" style="padding: 0 10px; min-width: 40px; height: 35px;"><i class="material-icons" style="font-size: 20px;">folder_open</i></button>
@@ -368,7 +373,7 @@
                 </div>
                 
                 <div id="tab-system" class="tab-content">
-                    <h3>System</h3>
+                    <h3 data-i18n-key="settings_tab_system"></h3>
                     <div class="form-grid simple">
                         <label for="system.webPort">Port for HTTP access</label>
                         <input type="number" id="system.webPort" min="1" max="65535" step="1">
@@ -405,7 +410,7 @@
                 </div>
 
                 <div id="tab-isp" class="tab-content">
-                    <h3>ISP</h3>
+                    <h3 data-i18n-key="settings_tab_isp"></h3>
                     <div class="form-grid simple">
                         <label for="isp.drc">Dynamic range compression</label>
                         <input type="number" id="isp.drc" step="1">
@@ -455,7 +460,7 @@
                 </div>
 
                 <div id="tab-image" class="tab-content">
-                    <h3>Image</h3>
+                    <h3 data-i18n-key="settings_tab_image"></h3>
                     <div class="form-grid simple">
                         <label for="image.mirror">Flip image horizontally</label>
                         <div class="form-check-inline">
@@ -506,7 +511,7 @@
                 </div>
 
                 <div id="tab-video0" class="tab-content">
-                    <h3>Video0 (Main Stream)</h3>
+                    <h3 data-i18n-key="settings_tab_video0"></h3>
                     <div class="form-grid simple">
                         <label for="video0.enabled">Enable video</label>
                         <div class="form-check-inline"><input type="checkbox" id="video0.enabled" class="form-check-input"></div>
@@ -541,7 +546,7 @@
                 </div>
 
                 <div id="tab-video1" class="tab-content">
-                    <h3>Video1 (Sub Stream)</h3>
+                    <h3 data-i18n-key="settings_tab_video1"></h3>
                     <div class="form-grid simple">
                         <label for="video1.enabled">Enable video</label>
                         <div class="form-check-inline"><input type="checkbox" id="video1.enabled" class="form-check-input"></div>
@@ -576,7 +581,7 @@
                 </div>
                 
                 <div id="tab-jpeg" class="tab-content">
-                    <h3>JPEG</h3>
+                    <h3 data-i18n-key="settings_tab_jpeg"></h3>
                     <div class="form-grid simple">
                         <label for="jpeg.enabled">Enable JPEG support</label>
                         <div class="form-check-inline"><input type="checkbox" id="jpeg.enabled" class="form-check-input"></div>
@@ -602,7 +607,7 @@
                 </div>
 
                 <div id="tab-osd" class="tab-content">
-                    <h3>OSD</h3>
+                    <h3 data-i18n-key="settings_tab_osd"></h3>
                     <div class="form-grid simple">
                         <label for="osd.enabled">Enable On-Screen Display</label>
                         <div class="form-check-inline"><input type="checkbox" id="osd.enabled" class="form-check-input"></div>
@@ -628,7 +633,7 @@
                 </div>
 
                 <div id="tab-audio" class="tab-content">
-                    <h3>Audio</h3>
+                    <h3 data-i18n-key="settings_tab_audio"></h3>
                     <div class="form-grid simple">
                         <label for="audio.enabled">Enable microphone</label>
                         <div class="form-check-inline"><input type="checkbox" id="audio.enabled" class="form-check-input"></div>
@@ -677,7 +682,7 @@
                 </div>
 
                 <div id="tab-rtsp" class="tab-content">
-                    <h3>RTSP</h3>
+                    <h3 data-i18n-key="settings_tab_rtsp"></h3>
                     <div class="form-grid simple">
                         <label for="rtsp.enabled">Enable RTSP</label>
                         <div class="form-check-inline"><input type="checkbox" id="rtsp.enabled" class="form-check-input"></div>
@@ -688,7 +693,7 @@
                 </div>
 
                 <div id="tab-nightMode" class="tab-content">
-                    <h3>Night Mode</h3>
+                    <h3 data-i18n-key="settings_tab_night"></h3>
                     <div class="form-grid simple">
                         <label for="nightMode.colorToGray">Colorless night mode</label>
                         <div class="form-check-inline"><input type="checkbox" id="nightMode.colorToGray" class="form-check-input"></div>
@@ -732,7 +737,7 @@
                 </div>
                 
                 <div id="tab-motionDetect" class="tab-content">
-                    <h3>Motion</h3>
+                    <h3 data-i18n-key="settings_tab_motion"></h3>
                     <div class="form-grid simple">
                         <label for="motionDetect.enabled">Enable motion detection</label>
                         <div class="form-check-inline">
@@ -755,7 +760,7 @@
                 </div>
 
                 <div id="tab-records" class="tab-content">
-                    <h3>Record</h3>
+                    <h3 data-i18n-key="settings_tab_record"></h3>
                     <div class="form-grid simple">
                         <label for="records.enabled">Enable recording</label>
                         <div class="form-check-inline">
@@ -782,7 +787,7 @@
                 </div>
                 
                 <div id="tab-outgoing" class="tab-content">
-                    <h3>Outgoing</h3>
+                    <h3 data-i18n-key="settings_tab_outgoing"></h3>
                     <div class="form-grid simple">
                         <label for="outgoing.enabled">Enable outgoing streams</label>
                         <div class="form-check-inline">
@@ -803,7 +808,7 @@
                 </div>
                 
                 <div id="tab-watchdog" class="tab-content">
-                    <h3>Watchdog</h3>
+                    <h3 data-i18n-key="settings_tab_watchdog"></h3>
                     <div class="form-grid simple">
                         <label for="watchdog.enabled">Enable Watchdog</label>
                         <div class="form-check-inline">
@@ -816,7 +821,7 @@
                 </div>
                 
                 <div id="tab-hls" class="tab-content">
-                    <h3>HLS</h3>
+                    <h3 data-i18n-key="settings_tab_hls"></h3>
                     <div class="form-grid simple">
                         <label for="hls.enabled">Enable HTTP Live Streaming</label>
                         <div class="form-check-inline">
@@ -826,7 +831,7 @@
                 </div>
                 
                 <div id="tab-onvif" class="tab-content">
-                    <h3>ONVIF</h3>
+                    <h3 data-i18n-key="settings_tab_onvif"></h3>
                     <div class="form-grid simple">
                         <label for="onvif.enabled">Enable ONVIF protocol support</label>
                         <div class="form-check-inline">
@@ -836,7 +841,7 @@
                 </div>
                 
                 <div id="tab-ipeye" class="tab-content">
-                    <h3>IPEYE</h3>
+                    <h3 data-i18n-key="settings_tab_ipeye"></h3>
                     <div class="form-grid simple">
                         <label for="ipeye.enabled">Enable IPEYE protocol support</label>
                         <div class="form-check-inline">
@@ -845,9 +850,8 @@
                     </div>
                 </div>
 
-                <!-- START: MODIFIED SECTION -->
                 <div id="tab-netip" class="tab-content">
-                    <h3>NETIP</h3>
+                    <h3 data-i18n-key="settings_tab_netip"></h3>
                     <div class="form-grid simple">
                         <label for="netip.enabled">Enable NETIP protocol support</label>
                         <div class="form-check-inline">
@@ -874,13 +878,12 @@
                         </div>
                     </div>
                 </div>
-                <!-- END: MODIFIED SECTION -->
 
             </div>
             <div class="modal-footer">
-                <button id="save-settings-btn">Сохранить</button>
-                <button id="restart-majestic-btn" style="background-color: #ffc107; color: black;">Перезапустить Majestic</button>
-                <button id="kill-all-btn-modal" style="background-color: var(--danger-color); color: white;">Аварийный сброс</button>
+                <button id="save-settings-btn" data-i18n-key="save"></button>
+                <button id="restart-majestic-btn" style="background-color: #ffc107; color: black;" data-i18n-key="settings_restart_majestic"></button>
+                <button id="kill-all-btn-modal" style="background-color: var(--danger-color); color: white;" data-i18n-key="settings_kill_all"></button>
             </div>
             <div id="settings-toast" class="toast-notification"></div>
         </div>
@@ -889,13 +892,13 @@
     <div id="add-group-modal" class="modal-backdrop hidden">
         <div class="modal-content">
             <span id="add-group-modal-close-btn" class="modal-close-btn">×</span>
-            <h2 id="add-group-modal-title">Создать новую группу</h2>
+            <h2 id="add-group-modal-title" data-i18n-key="create_group_title"></h2>
             <div class="form-grid simple">
-                <b>Название:</b> <input type="text" id="new-group-name" placeholder="Моя новая группа">
+                <b data-i18n-key="camera_name"></b> <input type="text" id="new-group-name" data-i18n-placeholder="group_name_placeholder">
                 <b></b>
                 <div class="form-buttons">
-                    <button id="save-group-btn">Сохранить</button>
-                    <button id="cancel-group-btn" style="background-color: #6c757d;">Отмена</button>
+                    <button id="save-group-btn" data-i18n-key="save"></button>
+                    <button id="cancel-group-btn" style="background-color: #6c757d;" data-i18n-key="cancel"></button>
                 </div>
             </div>
         </div>
@@ -907,18 +910,18 @@
             <div class="archive-container">
                 <div class="archive-list-panel">
                     <div class="archive-list-header">
-                        <h3>Записи</h3>
-                        <button id="archive-refresh-btn" title="Обновить список"><i class="material-icons">refresh</i></button>
+                        <h3 data-i18n-key="archive_title"></h3>
+                        <button id="archive-refresh-btn" data-i18n-tooltip="archive_refresh_tooltip"><i class="material-icons">refresh</i></button>
                     </div>
                     <ul id="archive-list">
                     </ul>
                 </div>
                 <div class="archive-player-panel">
                     <video id="archive-video-player" controls style="display: none;"></video>
-                    <div id="archive-player-placeholder">Выберите запись для просмотра</div>
+                    <div id="archive-player-placeholder" data-i18n-key="archive_placeholder"></div>
                     <div class="archive-player-footer">
-                        <button id="archive-delete-btn" disabled>Удалить</button>
-                        <button id="archive-show-folder-btn" disabled>Показать в папке</button>
+                        <button id="archive-delete-btn" disabled data-i18n-key="archive_delete"></button>
+                        <button id="archive-show-folder-btn" disabled data-i18n-key="archive_show_in_folder"></button>
                     </div>
                 </div>
             </div>
@@ -926,6 +929,7 @@
     </div>
     
     <script src="jsmpeg.min.js"></script>
+    <script src="./js/i18n.js"></script>
     <script src="./js/modal-handler.js"></script>
     <script src="./js/camera-list.js"></script>
     <script src="./js/grid-manager.js"></script>

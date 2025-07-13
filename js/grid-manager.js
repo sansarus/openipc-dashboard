@@ -13,6 +13,19 @@
         let gridCellsState = Array(MAX_GRID_SIZE).fill(null);
         let fullscreenCellIndex = null;
 
+        function updatePlaceholdersLanguage() {
+            const placeholderHTML = `<span><i class="material-icons placeholder-icon">add_photo_alternate</i><br>${App.t('drop_camera_here')}</span>`;
+            
+            for (let i = 0; i < gridCellsState.length; i++) {
+                if (gridCellsState[i] === null) {
+                    const cell = gridContainer.querySelector(`[data-cell-id='${i}']`);
+                    if (cell) {
+                        cell.innerHTML = placeholderHTML;
+                    }
+                }
+            }
+        }
+
         function getGridSize() {
             return { cols: gridCols, rows: gridRows };
         }
@@ -34,7 +47,7 @@
                 btn.className = 'layout-btn';
                 btn.dataset.layout = layout;
                 btn.textContent = layout.split('x').reduce((a, b) => a * b, 1);
-                btn.title = `Раскладка ${layout}`;
+                btn.title = `Layout ${layout}`;
                 btn.onclick = () => {
                     const [cols, rows] = layout.split('x').map(Number);
                     setGridLayout(cols, rows);
@@ -109,7 +122,7 @@
                 cell.style.display = 'none';
                 cell.ondblclick = () => toggleFullscreen(i);
                 
-                cell.innerHTML = `<span><i class="material-icons placeholder-icon">add_photo_alternate</i><br>Перетащите камеру</span>`;
+                cell.innerHTML = `<span><i class="material-icons placeholder-icon">add_photo_alternate</i><br>${App.t('drop_camera_here')}</span>`;
         
                 cell.addEventListener('dragover', (e) => { e.preventDefault(); cell.classList.add('drag-over'); });
                 cell.addEventListener('dragleave', () => cell.classList.remove('drag-over'));
@@ -184,7 +197,7 @@
             sourceCell.classList.toggle('active', !!sourceState);
             targetCell.classList.toggle('active', !!targetState);
             
-            const placeholderHTML = `<span><i class="material-icons placeholder-icon">add_photo_alternate</i><br>Перетащите камеру</span>`;
+            const placeholderHTML = `<span><i class="material-icons placeholder-icon">add_photo_alternate</i><br>${App.t('drop_camera_here')}</span>`;
             if (!sourceState) sourceCell.innerHTML = placeholderHTML;
             if (!targetState) targetCell.innerHTML = placeholderHTML;
 
@@ -204,7 +217,7 @@
             const cellElement = document.querySelector(`[data-cell-id='${cellIndex}']`);
             if (!cellElement) return;
 
-            cellElement.innerHTML = `<span>Подключение...</span>`;
+            cellElement.innerHTML = `<span>${App.t('connecting')}</span>`;
             cellElement.classList.add('active');
             cellElement.draggable = true;
             setupDragStartForCell(cellElement, cellIndex);
@@ -239,7 +252,6 @@
                 cellElement.appendChild(nameDiv);
                 cellElement.appendChild(statsDiv);
                 
-                // ИЗМЕНЕНИЕ ЗДЕСЬ: добавлен onVideoDecode
                 const player = new JSMpeg.Player(`ws://localhost:${result.wsPort}`, { 
                     canvas, 
                     autoplay: true, 
@@ -276,7 +288,7 @@
 
                 gridCellsState[cellIndex].player = player;
             } else {
-                cellElement.innerHTML = `<span>Ошибка: ${result.error || 'Неизвестная ошибка'}</span>`;
+                cellElement.innerHTML = `<span>${App.t('error')}: ${result.error || App.t('unknown_error')}</span>`;
                 cellElement.classList.remove('active');
                 cellElement.draggable = false;
                 gridCellsState[cellIndex] = null;
@@ -306,7 +318,7 @@
             if (clearCellUI) {
                 const cellElement = document.querySelector(`[data-cell-id='${cellIndex}']`);
                 if(cellElement) {
-                    cellElement.innerHTML = `<span><i class="material-icons placeholder-icon">add_photo_alternate</i><br>Перетащите камеру</span>`;
+                    cellElement.innerHTML = `<span><i class="material-icons placeholder-icon">add_photo_alternate</i><br>${App.t('drop_camera_here')}</span>`;
                     cellElement.classList.remove('active');
                     cellElement.draggable = false;
                 }
@@ -323,7 +335,7 @@
         
             await destroyPlayerInCell(cellIndex);
             const cellElement = document.querySelector(`[data-cell-id='${cellIndex}']`);
-            if(cellElement) cellElement.innerHTML = '<span>Переключение потока...</span>';
+            if(cellElement) cellElement.innerHTML = `<span>${App.t('switch_stream')}</span>`;
             
             await startStreamInCell(cellIndex, cameraId, newStreamId);
         
@@ -346,7 +358,7 @@
             const currentVolume = state.player ? state.player.volume : 0;
             
             await destroyPlayerInCell(cellIndex);
-            cell.innerHTML = '<span>Переключение...</span>';
+            cell.innerHTML = `<span>${App.t('switch_fullscreen')}</span>`;
             
             if (isCurrentlyFullscreen) {
                 fullscreenCellIndex = null;
@@ -380,7 +392,7 @@
             const { camera, streamId } = gridCellsState[cellIndex];
             const cellElement = document.querySelector(`[data-cell-id='${cellIndex}']`);
             if (cellElement) {
-                cellElement.innerHTML = `<span>Потеря связи.<br>Переподключение через 5с...</span>`;
+                cellElement.innerHTML = `<span>${App.t('stream_died_reconnecting')}</span>`;
                 cellElement.classList.remove('active');
                 cellElement.draggable = false;
             }
@@ -442,7 +454,14 @@
                 const state = gridCellsState[cellIndex];
                 if (state && state.camera) {
                     e.preventDefault();
-                    window.api.showCameraContextMenu(state.camera.id);
+                    const labels = {
+                        files: `🗂️  ${App.t('context_file_manager')}`,
+                        ssh: `💻  ${App.t('context_ssh')}`,
+                        settings: `⚙️  ${App.t('context_settings')}`,
+                        edit: `✏️  ${App.t('context_edit')}`,
+                        delete: `🗑️  ${App.t('context_delete')}`
+                    };
+                    window.api.showCameraContextMenu({ cameraId: state.camera.id, labels });
                 }
             });
             window.addEventListener('keydown', (e) => {
@@ -462,7 +481,8 @@
             updateRecordingState,
             restartStreamsForCamera,
             updateCameraNameInGrid,
-            removeStreamsForCamera
+            removeStreamsForCamera,
+            updatePlaceholdersLanguage
         }
     }
 })(window);

@@ -1,134 +1,124 @@
 // js/renderer.js
-
-document.addEventListener('DOMContentLoaded', () => {
-    // --- Global Application State & Modules ---
+(function(window) {
+    'use strict';
+    
+    // Глобальный объект приложения
     const App = {
         cameras: [],
         groups: [],
-        appSettings: {},
+        gridState: [],
+        layout: { cols: 2, rows: 2 },
         recordingStates: {},
-        modalHandler: null,
-        cameraList: null,
-        gridManager: null,
-        archiveManager: null,
-
-        async saveConfiguration() {
-            try {
-                const { cols, rows } = this.gridManager.getGridSize();
-                const gridState = this.gridManager.getGridState().map(state => {
-                    if (!state || !state.camera) return null;
-                    return { cameraId: state.camera.id, streamId: state.streamId };
-                });
-
-                const config = {
-                    cameras: this.cameras,
-                    groups: this.groups,
-                    layout: { cols, rows },
-                    gridState: gridState
-                };
-                await window.api.saveConfiguration(config);
-                console.log('Configuration saved.');
-            } catch (error) {
-                console.error('Failed to save configuration:', error);
-            }
-        },
-
-        async toggleRecording(camera) {
-            const isRecording = this.recordingStates[camera.id];
-            if (isRecording) {
-                await window.api.stopRecording(camera.id);
-            } else {
-                const result = await window.api.startRecording(camera);
-                if (!result.success) {
-                    // В реальном приложении лучше использовать кастомный toast или alert
-                    alert(`Ошибка начала записи: ${result.error}`);
-                }
-            }
-        }
+        appSettings: {},
+        t: (key) => key // Временная функция-заглушка для перевода до инициализации
     };
-    
-    // --- Initialization ---
-    async function initialize() {
-        console.log('Initializing application...');
-        
-        // Create module instances from the global namespace
-        App.modalHandler = AppModules.createModalHandler(App);
-        App.cameraList = AppModules.createCameraList(App);
-        App.gridManager = AppModules.createGridManager(App);
-        App.archiveManager = AppModules.createArchiveManager(App);
 
-        // Load configuration
-        App.appSettings = await window.api.loadAppSettings();
+    // Делаем App доступным глобально, чтобы другие модули могли его использовать
+    window.App = App;
+
+    // Инициализация модулей приложения
+    App.i18n = AppModules.createI18n(App);
+    App.modalHandler = AppModules.createModalHandler(App);
+    App.cameraList = AppModules.createCameraList(App);
+    App.gridManager = AppModules.createGridManager(App);
+    App.archiveManager = AppModules.createArchiveManager(App);
+
+    // Получаем DOM-элемент для отображения статуса
+    const statusInfo = document.getElementById('status-info');
+
+    // Загрузка основной конфигурации (камеры, группы, сетка)
+    async function loadConfiguration() {
         const config = await window.api.loadConfiguration();
-        App.cameras = Array.isArray(config.cameras) ? config.cameras : [];
-        App.groups = Array.isArray(config.groups) ? config.groups : [];
-        console.log(`Loaded ${App.cameras.length} cameras and ${App.groups.length} groups.`);
-        
-        const MAX_GRID_SIZE = 64; // This constant should ideally be shared among modules
-        const gridState = {
-            layout: config.layout || { cols: 2, rows: 2 },
-            gridState: (Array.isArray(config.gridState) ? config.gridState : []).map(state => {
-                if (state && state.cameraId) {
-                    const camera = App.cameras.find(c => c.id === state.cameraId);
-                    return camera ? { camera, player: null, streamId: state.streamId } : null;
-                }
-                return null;
-            }).concat(Array(MAX_GRID_SIZE).fill(null)).slice(0, MAX_GRID_SIZE)
-        };
+        App.cameras = config.cameras || [];
+        App.groups = config.groups || [];
+        App.gridManager.setInitialState(config);
+    }
+    
+    // Загрузка настроек самого приложения (путь к записям и т.д.)
+    async function loadAppSettings() {
+        App.appSettings = await window.api.loadAppSettings();
+    }
 
-        // Init modules
+    // Сохранение текущей конфигурации в файл
+    async function saveConfiguration() {
+        const config = {
+            cameras: App.cameras,
+            groups: App.groups,
+            gridState: App.gridManager.getGridState(),
+            layout: App.gridManager.getGridSize(),
+        };
+        await window.api.saveConfiguration(config);
+    }
+    
+    // Переключение состояния записи для камеры
+    async function toggleRecording(camera) {
+        if (App.recordingStates[camera.id]) {
+            await window.api.stopRecording(camera.id);
+        } else {
+            await window.api.startRecording(camera);
+        }
+    }
+
+    // Обновление информации о загрузке ЦП и использовании ОЗУ
+    function updateSystemStats() {
+        window.api.getSystemStats().then(stats => {
+            statusInfo.textContent = `${App.t('status_cpu')}: ${stats.cpu}% | ${App.t('status_ram')}: ${stats.ram} MB`;
+        });
+    }
+
+    // --- Обработчики событий от основного процесса ---
+
+    window.api.onRecordingStateChange(({ cameraId, recording }) => {
+        App.recordingStates[cameraId] = recording;
+        App.cameraList.updateRecordingState(cameraId, recording);
+        App.gridManager.updateRecordingState(cameraId, recording);
+    });
+
+    window.api.onStreamDied(uniqueStreamIdentifier => {
+        App.gridManager.handleStreamDeath(uniqueStreamIdentifier);
+    });
+    
+    window.api.onStreamStats(({ uniqueStreamIdentifier, fps, bitrate }) => {
+        const statsDiv = document.getElementById(`stats-${uniqueStreamIdentifier}`);
+        if(statsDiv) {
+            statsDiv.textContent = `${Math.round(fps)}fps, ${Math.round(bitrate)}kbps`;
+        }
+    });
+
+    // --- Основная функция инициализации приложения ---
+    async function init() {
+        // ИСПРАВЛЕННЫЙ ПОРЯДОК ИНИЦИАЛИЗАЦИИ
+        
+        // 1. Сначала загружаем настройки приложения, чтобы знать сохраненный язык
+        await loadAppSettings();
+        
+        // 2. Теперь инициализируем локализацию, которая использует эти настройки
+        await App.i18n.init();
+
+        // 3. Делаем важные функции доступными глобально внутри App
+        App.saveConfiguration = saveConfiguration;
+        App.toggleRecording = toggleRecording;
+
+        // 4. Загружаем основную конфигурацию
+        await loadConfiguration();
+        
+        // 5. Инициализируем все UI-модули
         App.modalHandler.init();
         App.cameraList.init();
         App.gridManager.init();
         App.archiveManager.init();
-        
-        // Render UI
-        App.gridManager.setInitialState(gridState);
-        await App.gridManager.render();
+
+        // 6. Первичная отрисовка интерфейса
         App.cameraList.render();
-
-        // Setup periodic tasks
-        setInterval(updateSystemStats, 2000);
-        setInterval(() => App.cameraList.pollCameraStatuses(), 60000);
-
-        setupApiListeners();
-    }
-
-    async function updateSystemStats() {
-        try {
-            const statusInfoEl = document.getElementById('status-info');
-            const stats = await window.api.getSystemStats();
-            statusInfoEl.textContent = `CPU: ${stats.cpu}% | RAM: ${stats.ram}MB`;
-        } catch (error) {
-            console.error("Failed to get system stats:", error);
-            // In case the element is not found, do not crash
-            const statusInfoEl = document.getElementById('status-info');
-            if(statusInfoEl) statusInfoEl.textContent = "Stats unavailable";
-        }
-    }
-
-    function setupApiListeners() {
-        window.api.onRecordingStateChange(({ cameraId, recording, path, error }) => {
-            App.recordingStates[cameraId] = recording;
-            App.cameraList.updateRecordingState(cameraId, recording);
-            App.gridManager.updateRecordingState(cameraId, recording);
-            if (error) alert(`Ошибка записи: ${error}`);
-        });
+        await App.gridManager.render();
         
-        window.api.onStreamStats((stats) => {
-            const statsElement = document.getElementById(`stats-${stats.uniqueStreamIdentifier}`);
-            if (statsElement) {
-                const fps = stats.fps.toFixed(1);
-                const bitrate = stats.bitrate.toFixed(0);
-                statsElement.textContent = `FPS: ${fps} | ${bitrate}kb/s`;
-            }
-        });
-        
-        window.api.onStreamDied((uniqueStreamIdentifier) => {
-            App.gridManager.handleStreamDeath(uniqueStreamIdentifier);
-        });
+        // 7. Запускаем периодические задачи
+        setInterval(updateSystemStats, 3000);
+        setInterval(() => App.cameraList.pollCameraStatuses(), 10000);
+        updateSystemStats(); // Первый запуск сразу
     }
 
-    // --- Start the App ---
-    initialize();
-});
+    // Запускаем приложение
+    init();
+
+})(window);
