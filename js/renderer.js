@@ -1,4 +1,5 @@
-// js/renderer.js
+// --- renderer.js ---
+
 (function(window) {
     'use strict';
     
@@ -87,38 +88,71 @@
 
     // --- Основная функция инициализации приложения ---
     async function init() {
-        // ИСПРАВЛЕННЫЙ ПОРЯДОК ИНИЦИАЛИЗАЦИИ
-        
-        // 1. Сначала загружаем настройки приложения, чтобы знать сохраненный язык
         await loadAppSettings();
-        
-        // 2. Теперь инициализируем локализацию, которая использует эти настройки
         await App.i18n.init();
 
-        // 3. Делаем важные функции доступными глобально внутри App
         App.saveConfiguration = saveConfiguration;
         App.toggleRecording = toggleRecording;
 
-        // 4. Загружаем основную конфигурацию
         await loadConfiguration();
         
-        // 5. Инициализируем все UI-модули
         App.modalHandler.init();
         App.cameraList.init();
         App.gridManager.init();
         App.archiveManager.init();
 
-        // 6. Первичная отрисовка интерфейса
         App.cameraList.render();
         await App.gridManager.render();
         
-        // 7. Запускаем периодические задачи
         setInterval(updateSystemStats, 3000);
         setInterval(() => App.cameraList.pollCameraStatuses(), 10000);
-        updateSystemStats(); // Первый запуск сразу
+        updateSystemStats();
     }
 
     // Запускаем приложение
     init();
+
+    // === НОВЫЙ КОД: ОБРАБОТЧИК СТАТУСА ОБНОВЛЕНИЯ ===
+    (function() {
+        const updateStatusInfo = document.createElement('div');
+        updateStatusInfo.style.marginLeft = '15px';
+        updateStatusInfo.style.fontSize = '12px';
+        updateStatusInfo.style.color = 'var(--text-secondary)';
+        
+        const statusBar = document.getElementById('status-info').parentElement;
+        if (statusBar) {
+            statusBar.appendChild(updateStatusInfo);
+        }
+
+        window.api.onUpdateStatus(({ status, message }) => {
+            console.log(`Update status: ${status}, message: ${message}`);
+            
+            switch (status) {
+                case 'available':
+                    updateStatusInfo.innerHTML = `💡 <span style="text-decoration: underline; cursor: help;" title="${message}">Доступно обновление!</span>`;
+                    updateStatusInfo.style.color = '#ffc107';
+                    break;
+                case 'downloading':
+                    updateStatusInfo.textContent = `⏳ ${message}`;
+                    updateStatusInfo.style.color = '#17a2b8';
+                    break;
+                case 'downloaded':
+                    updateStatusInfo.innerHTML = `✅ <span style="text-decoration: underline; cursor: help;" title="${message}">Обновление загружено.</span>`;
+                    updateStatusInfo.style.color = '#28a745';
+                    break;
+                case 'error':
+                    updateStatusInfo.textContent = `❌ ${message}`;
+                    updateStatusInfo.style.color = '#dc3545';
+                    break;
+                case 'latest':
+                    updateStatusInfo.textContent = `👍 ${message}`;
+                    setTimeout(() => { if (updateStatusInfo.textContent.includes(message)) updateStatusInfo.textContent = ''; }, 5000);
+                    break;
+                default:
+                    updateStatusInfo.textContent = '';
+                    break;
+            }
+        });
+    })();
 
 })(window);

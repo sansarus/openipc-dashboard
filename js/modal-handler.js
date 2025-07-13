@@ -22,9 +22,13 @@
         const settingsToast = document.getElementById('settings-toast');
         const recordingsPathInput = document.getElementById('app-settings-recordings-path');
         const selectRecPathBtn = document.getElementById('select-rec-path-btn');
-        const languageSelect = document.getElementById('app-settings-language'); // НОВЫЙ ЭЛЕМЕНТ
+        const languageSelect = document.getElementById('app-settings-language');
+        
+        // === НОВЫЕ ЭЛЕМЕНТЫ ДЛЯ ОБНОВЛЕНИЯ ===
+        const checkForUpdatesBtn = document.getElementById('check-for-updates-btn');
+        const updateStatusText = document.getElementById('update-status-text');
+        
         let toastTimeout;
-
         let editingCameraId = null;
         let settingsCameraId = null;
         let initialSettings = null;
@@ -170,7 +174,7 @@
             }
         
             recordingsPathInput.value = App.appSettings.recordingsPath || '';
-            languageSelect.value = App.appSettings.language || 'en'; // Устанавливаем язык
+            languageSelect.value = App.appSettings.language || 'en';
             restartMajesticBtn.style.display = isGeneralSettings ? 'none' : 'inline-flex';
             
             openModal(settingsModal);
@@ -364,12 +368,10 @@
             saveSettingsBtn.disabled = true;
             saveSettingsBtn.textContent = App.t('saving_text');
             
-            // Сохраняем общие настройки приложения
             App.appSettings.recordingsPath = recordingsPathInput.value.trim();
             App.appSettings.language = languageSelect.value;
             await window.api.saveAppSettings(App.appSettings);
             
-            // Если это были только общие настройки, выходим
             if (settingsCameraId === null) { 
                 saveSettingsBtn.disabled = false;
                 saveSettingsBtn.textContent = App.t('save');
@@ -391,7 +393,6 @@
             };
 
             const settingsDataToSend = {
-                // ... (все ключи настроек камеры остаются без изменений)
                 'motionDetect.enabled': getFormValue('motionDetect.enabled'),
                 'motionDetect.visualize': getFormValue('motionDetect.visualize'),
                 'motionDetect.debug': getFormValue('motionDetect.debug'),
@@ -563,8 +564,7 @@
             addGroupModal.addEventListener('click', (e) => { if (e.target === addGroupModal) closeModal(addGroupModal); });
             
             generalSettingsBtn.addEventListener('click', () => openSettingsModal(null));
-
-            // НОВЫЙ ОБРАБОТЧИК: Смена языка
+            
             languageSelect.addEventListener('change', async (e) => {
                 await App.i18n.setLanguage(e.target.value);
             });
@@ -596,6 +596,46 @@
                 });
             });
             
+            // === НОВАЯ ЛОГИКА ДЛЯ КНОПКИ И СТАТУСА ОБНОВЛЕНИЯ ===
+            checkForUpdatesBtn.addEventListener('click', () => {
+                updateStatusText.textContent = 'Проверка...';
+                checkForUpdatesBtn.disabled = true;
+                window.api.checkForUpdates();
+            });
+
+            window.api.onUpdateStatus(({ status, message }) => {
+                // Этот обработчик будет обновлять текст в модальном окне
+                checkForUpdatesBtn.disabled = false;
+                let version = message.includes('версия') ? message.split(' ').pop() : '';
+                
+                switch (status) {
+                    case 'available':
+                        updateStatusText.textContent = `Доступна новая версия: ${version}`;
+                        updateStatusText.style.color = '#ffc107'; // Желтый
+                        break;
+                    case 'downloading':
+                        updateStatusText.textContent = message;
+                        updateStatusText.style.color = '#17a2b8'; // Голубой
+                        checkForUpdatesBtn.disabled = true; // Блокируем кнопку во время загрузки
+                        break;
+                    case 'downloaded':
+                        updateStatusText.textContent = `Обновление загружено! Перезапустите приложение.`;
+                        updateStatusText.style.color = '#28a745'; // Зеленый
+                        break;
+                    case 'error':
+                        updateStatusText.textContent = message;
+                        updateStatusText.style.color = '#dc3545'; // Красный
+                        break;
+                    case 'latest':
+                        updateStatusText.textContent = 'У вас установлена последняя версия.';
+                        updateStatusText.style.color = 'green';
+                        break;
+                    default:
+                        updateStatusText.textContent = 'Нажмите кнопку для проверки...';
+                        updateStatusText.style.color = 'inherit';
+                }
+            });
+
             window.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape') {
                     closeModal(addModal);

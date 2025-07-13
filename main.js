@@ -1,4 +1,4 @@
-// main.js
+// --- main.js (полный код с изменениями) ---
 
 const { app, BrowserWindow, ipcMain, Menu, clipboard, dialog, shell, protocol } = require('electron');
 const path = require('path');
@@ -13,6 +13,7 @@ const WebSocket = require('ws');
 const crypto = require('crypto');
 const ffmpeg = require('@ffmpeg-installer/ffmpeg');
 const keytar = require('keytar');
+const { autoUpdater } = require('electron-updater');
 
 // Отключаем sandbox для Linux, чтобы избежать проблем с AppImage
 if (process.platform === 'linux') {
@@ -124,7 +125,7 @@ async function startRecording(camera) {
     ffmpegProcess.on('close', (code) => {
         console.log(`[REC FFMPEG] Finished for "${camera.name}" with code ${code}.`);
         delete recordingManager[camera.id];
-        if (mainWindow) {
+        if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('recording-state-change', { 
                 cameraId: camera.id, 
                 recording: false, 
@@ -134,7 +135,7 @@ async function startRecording(camera) {
         }
     });
     console.log(`[REC] Starting for "${camera.name}" to ${outputPath}`);
-    if (mainWindow) mainWindow.webContents.send('recording-state-change', { cameraId: camera.id, recording: true });
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('recording-state-change', { cameraId: camera.id, recording: true });
     return { success: true };
 }
 
@@ -203,6 +204,13 @@ function createWindow() {
         webPreferences: { preload: path.join(__dirname, 'preload.js') }
     });
     mainWindow.loadFile('index.html');
+
+    mainWindow.once('ready-to-show', () => {
+        if (app.isPackaged) {
+            console.log('[Updater] App ready, checking for updates...');
+            autoUpdater.checkForUpdates();
+        }
+    });
 }
 
 function createFileManagerWindow(camera) {
@@ -387,7 +395,7 @@ ipcMain.handle('load-configuration', async () => {
         cameras: [],
         groups: [],
         layout: { cols: 2, rows: 2 },
-        gridState: [null, null, null, null]
+        gridState: Array(64).fill(null)
     };
     let config = defaultConfig;
     let needsResave = false;
@@ -408,6 +416,9 @@ ipcMain.handle('load-configuration', async () => {
         await fsPromises.access(configPath);
         const data = await fsPromises.readFile(configPath, 'utf-8');
         config = { ...defaultConfig, ...JSON.parse(data) };
+        if (!config.gridState || config.gridState.length < 64) {
+            config.gridState = Array(64).fill(null);
+        }
     } catch (e) {
         const migratedConfig = await migrateOldFile();
         if (migratedConfig) {
@@ -777,6 +788,63 @@ ipcMain.handle('show-recording-in-folder', async (event, filename) => {
         console.error(`Failed to show recording ${filename} in folder:`, e);
         return { success: false, error: e.message };
     }
+});
+
+// НОВЫЙ ОБРАБОТЧИК ДЛЯ РУЧНОЙ ПРОВЕРКИ
+ipcMain.handle('check-for-updates', () => {
+    if (!app.isPackaged) {
+        console.log('[Updater] Skipping update check in dev mode.');
+        if(mainWindow) {
+            mainWindow.webContents.send('update-status', { status: 'error', message: 'Проверка обновлений доступна только в установленной версии.' });
+        }
+        return;
+    }
+    console.log('[Updater] Manual update check initiated.');
+    autoUpdater.checkForUpdates();
+});
+
+// ОБРАБОТЧИКИ СОБЫТИЙ AUTOUPDATER
+autoUpdater.on('update-available', (info) => {
+    console.log('[Updater] Update available.', info);
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('update-status', { status: 'available', message: `Доступна версия ${info.version}` });
+});
+
+autoUpdater.on('update-not-available', (info) => {
+    console.log('[Updater] No new update available.');
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('update-status', { status: 'latest', message: 'У вас последняя версия.' });
+});
+
+autoUpdater.on('error', (err) => {
+    console.error('[Updater] Error:', err ? (err.stack || err) : 'unknown error');
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('update-status', { status: 'error', message: `Ошибка обновления: ${err.message}` });
+});
+
+autoUpdater.on('download-progress', (progressObj) => {
+    let log_message = "Download speed: " + progressObj.bytesPerSecond;
+    log_message = log_message + ' - Downloaded ' + progressObj.percent.toFixed(2) + '%';
+    log_message = log_message + ' (' + progressObj.transferred + "/" + progressObj.total + ')';
+    console.log('[Updater] ' + log_message);
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('update-status', {
+        status: 'downloading',
+        message: `Загрузка... ${progressObj.percent.toFixed(0)}%`
+    });
+});
+
+autoUpdater.on('update-downloaded', (info) => {
+    console.log('[Updater] Update downloaded.', info);
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('update-status', { status: 'downloaded', message: `Версия ${info.version} загружена. Перезапустите для установки.` });
+    
+    dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'Обновление готово',
+        message: 'Новая версия загружена. Перезапустить приложение сейчас, чтобы установить обновление?',
+        buttons: ['Перезапустить', 'Позже'],
+        defaultId: 0
+    }).then(({ response }) => {
+        if (response === 0) {
+            autoUpdater.quitAndInstall();
+        }
+    });
 });
 
 app.whenReady().then(() => {

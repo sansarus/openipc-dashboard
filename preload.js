@@ -1,3 +1,5 @@
+// --- preload.js (полный код с изменениями) ---
+
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
@@ -36,4 +38,9 @@ contextBridge.exposeInMainWorld('api', {
 
   startAiDetection: (camera) => ipcRenderer.invoke('start-ai-detection', camera),
   stopAiDetection: (cameraId) => ipcRenderer.invoke('stop-ai-detection', cameraId),
+
+  onUpdateStatus: (callback) => ipcRenderer.on('update-status', (event, data) => callback(data)),
+
+  // === НОВЫЙ МЕТОД ДЛЯ РУЧНОЙ ПРОВЕРКИ ===
+  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
 });
