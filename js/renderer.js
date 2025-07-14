@@ -104,6 +104,14 @@
         App.cameraList.render();
         await App.gridManager.render();
         
+        // !!! ИЗМЕНЕНИЕ: ДОБАВЛЕН СЛУШАТЕЛЬ ДЛЯ РЕАКЦИИ НА СМЕНУ ЯЗЫКА !!!
+        window.addEventListener('language-changed', () => {
+            console.log("Language changed, re-rendering components...");
+            App.cameraList.render();
+            App.gridManager.updatePlaceholdersLanguage();
+            updateSystemStats(); // Обновим и статусную строку
+        });
+
         setInterval(updateSystemStats, 3000);
         setInterval(() => App.cameraList.pollCameraStatuses(), 10000);
         updateSystemStats();
@@ -127,26 +135,27 @@
         window.api.onUpdateStatus(({ status, message }) => {
             console.log(`Update status: ${status}, message: ${message}`);
             
+            const version = message.includes(' ') ? message.split(' ').pop() : '';
             switch (status) {
                 case 'available':
-                    updateStatusInfo.innerHTML = `💡 <span style="text-decoration: underline; cursor: help;" title="${message}">Доступно обновление!</span>`;
+                    updateStatusInfo.innerHTML = `💡 <span style="text-decoration: underline; cursor: help;" title="${App.t('update_available', { version })}">${App.t('update_available_short')}</span>`;
                     updateStatusInfo.style.color = '#ffc107';
                     break;
                 case 'downloading':
-                    updateStatusInfo.textContent = `⏳ ${message}`;
+                    updateStatusInfo.textContent = `⏳ ${App.t('update_downloading', { percent: message.match(/\d+/)[0] })}`;
                     updateStatusInfo.style.color = '#17a2b8';
                     break;
                 case 'downloaded':
-                    updateStatusInfo.innerHTML = `✅ <span style="text-decoration: underline; cursor: help;" title="${message}">Обновление загружено.</span>`;
+                    updateStatusInfo.innerHTML = `✅ <span style="text-decoration: underline; cursor: help;" title="${App.t('update_downloaded')}">${App.t('update_downloaded_short')}</span>`;
                     updateStatusInfo.style.color = '#28a745';
                     break;
                 case 'error':
-                    updateStatusInfo.textContent = `❌ ${message}`;
+                    updateStatusInfo.textContent = `❌ ${App.t('update_error_short', { message })}`;
                     updateStatusInfo.style.color = '#dc3545';
                     break;
                 case 'latest':
-                    updateStatusInfo.textContent = `👍 ${message}`;
-                    setTimeout(() => { if (updateStatusInfo.textContent.includes(message)) updateStatusInfo.textContent = ''; }, 5000);
+                    updateStatusInfo.textContent = `👍 ${App.t('update_latest')}`;
+                    setTimeout(() => { if (updateStatusInfo.textContent.includes(App.t('update_latest'))) updateStatusInfo.textContent = ''; }, 5000);
                     break;
                 default:
                     updateStatusInfo.textContent = '';

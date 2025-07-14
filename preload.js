@@ -21,6 +21,8 @@ contextBridge.exposeInMainWorld('api', {
   openFileManager: (camera) => ipcRenderer.invoke('open-file-manager', camera),
   onStreamStats: (callback) => ipcRenderer.on('stream-stats', (event, stats) => callback(stats)),
   
+  openInBrowser: (ip) => ipcRenderer.invoke('open-in-browser', ip),
+
   startRecording: (camera) => ipcRenderer.invoke('start-recording', camera),
   stopRecording: (cameraId) => ipcRenderer.invoke('stop-recording', cameraId),
   openRecordingsFolder: () => ipcRenderer.invoke('open-recordings-folder'),
@@ -40,7 +42,7 @@ contextBridge.exposeInMainWorld('api', {
   stopAiDetection: (cameraId) => ipcRenderer.invoke('stop-ai-detection', cameraId),
 
   onUpdateStatus: (callback) => ipcRenderer.on('update-status', (event, data) => callback(data)),
-
-  // === НОВЫЙ МЕТОД ДЛЯ РУЧНОЙ ПРОВЕРКИ ===
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+  
+  getTranslationFile: (lang) => ipcRenderer.invoke('get-translation-file', lang),
 });

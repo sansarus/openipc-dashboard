@@ -77,6 +77,18 @@ ipcMain.handle('save-app-settings', async (event, settings) => {
     }
 });
 
+ipcMain.handle('get-translation-file', async (event, lang) => {
+    try {
+        const filePath = path.join(__dirname, 'locales', `${lang}.json`);
+        const data = await fsPromises.readFile(filePath, 'utf-8');
+        return JSON.parse(data);
+    } catch (e) {
+        console.error(`Failed to load translation file for ${lang}:`, e);
+        return null;
+    }
+});
+
+
 ipcMain.handle('select-directory', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
         properties: ['openDirectory']
@@ -85,6 +97,20 @@ ipcMain.handle('select-directory', async () => {
         return { canceled: true };
     }
     return { path: filePaths[0] };
+});
+
+ipcMain.handle('open-in-browser', async (event, ip) => {
+    if (!ip) {
+        return { success: false, error: 'IP address is not provided.' };
+    }
+    const url = `http://${ip}`;
+    try {
+        await shell.openExternal(url);
+        return { success: true };
+    } catch (e) {
+        console.error(`Failed to open URL ${url}:`, e);
+        return { success: false, error: e.message };
+    }
 });
 
 async function startRecording(camera) {
@@ -148,7 +174,7 @@ ipcMain.handle('stop-recording', (event, cameraId) => {
         record.process.stdin.write('q\n');
         return { success: true };
     }
-    return { success: false, error: 'Recording process not found' };
+    return { success: false, error: 'Recording is already in progress' };
 });
 
 ipcMain.handle('open-recordings-folder', async () => {
@@ -237,6 +263,8 @@ function createFileManagerWindow(camera) {
 
 ipcMain.on('show-camera-context-menu', (event, { cameraId, labels }) => {
     const template = [
+        { label: labels.open_in_browser, click: () => { event.sender.send('context-menu-command', { command: 'open_in_browser', cameraId }); } },
+        { type: 'separator' },
         { label: labels.files, click: () => { event.sender.send('context-menu-command', { command: 'files', cameraId }); } },
         { label: labels.ssh, click: () => { event.sender.send('context-menu-command', { command: 'ssh', cameraId }); } },
         { label: labels.settings, click: () => { event.sender.send('context-menu-command', { command: 'settings', cameraId }); } },
@@ -790,7 +818,6 @@ ipcMain.handle('show-recording-in-folder', async (event, filename) => {
     }
 });
 
-// НОВЫЙ ОБРАБОТЧИК ДЛЯ РУЧНОЙ ПРОВЕРКИ
 ipcMain.handle('check-for-updates', () => {
     if (!app.isPackaged) {
         console.log('[Updater] Skipping update check in dev mode.');
@@ -803,7 +830,6 @@ ipcMain.handle('check-for-updates', () => {
     autoUpdater.checkForUpdates();
 });
 
-// ОБРАБОТЧИКИ СОБЫТИЙ AUTOUPDATER
 autoUpdater.on('update-available', (info) => {
     console.log('[Updater] Update available.', info);
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('update-status', { status: 'available', message: `Доступна версия ${info.version}` });

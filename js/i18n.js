@@ -8,18 +8,18 @@
         const supportedLangs = ['en', 'ru'];
         let currentLang = 'en';
 
-        // Определяем язык браузера, если в настройках ничего нет
         const getPreferredLanguage = () => {
             const lang = (navigator.language || navigator.userLanguage).split('-')[0];
             return supportedLangs.includes(lang) ? lang : 'en';
         };
 
-        // Загружаем файл локализации
         async function loadTranslations(lang) {
             try {
-                const response = await fetch(`./locales/${lang}.json`);
-                if (!response.ok) throw new Error(`Failed to load ${lang}.json`);
-                translations = await response.json();
+                // ИЗМЕНЕНИЕ: Загрузка переводов через main процесс для надежности
+                const loadedTranslations = await window.api.getTranslationFile(lang);
+                if (!loadedTranslations) throw new Error(`Failed to load ${lang}.json`);
+                
+                translations = loadedTranslations;
                 currentLang = lang;
                 document.documentElement.lang = lang;
                 console.log(`Translations for '${lang}' loaded.`);
@@ -27,13 +27,13 @@
             } catch (error) {
                 console.error('Error loading translation file:', error);
                 if (lang !== 'en') {
+                    console.log('Falling back to English.');
                     return await loadTranslations('en'); // fallback to English
                 }
                 return false;
             }
         }
 
-        // Функция перевода
         function t(key, replacements = {}) {
             let translation = translations[key] || key;
             for (const placeholder in replacements) {
@@ -42,52 +42,46 @@
             return translation;
         }
 
-        // Применяем переводы ко всем статическим элементам на странице
         function applyTranslationsToDOM() {
-            // Текстовое содержимое
             document.querySelectorAll('[data-i18n-key]').forEach(element => {
                 const key = element.getAttribute('data-i18n-key');
                 element.textContent = t(key);
             });
-            // Всплывающие подсказки
             document.querySelectorAll('[data-i18n-tooltip]').forEach(element => {
                 const key = element.getAttribute('data-i18n-tooltip');
                 element.title = t(key);
             });
-            // Плейсхолдеры в инпутах
             document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
                 const key = element.getAttribute('data-i18n-placeholder');
                 element.placeholder = t(key);
             });
         }
         
-        // Функция для смены языка "на лету"
+        // ИЗМЕНЕНИЕ: Функция теперь напрямую вызывает обновление DOM и событие
         async function setLanguage(lang) {
             if (!supportedLangs.includes(lang) || lang === currentLang) {
                 return;
             }
-            await loadTranslations(lang);
-            applyTranslationsToDOM();
-            
-            // Перерисовываем компоненты, где текст генерируется динамически
-            App.cameraList.render(); 
-            App.gridManager.updatePlaceholdersLanguage(); // Обновляем плейсхолдеры в сетке
+            const success = await loadTranslations(lang);
+            if (success) {
+                applyTranslationsToDOM();
+                // Генерируем событие, чтобы другие модули могли на него отреагировать
+                window.dispatchEvent(new CustomEvent('language-changed'));
+            }
         }
 
-        // Инициализация при старте приложения
         async function init() {
-            // Сначала берем язык из настроек приложения, если он там есть
             const lang = App.appSettings.language || getPreferredLanguage();
             await loadTranslations(lang);
-            applyTranslationsToDOM();
             App.t = t; // Делаем функцию перевода доступной глобально в App
+            applyTranslationsToDOM(); // Первоначальный перевод
         }
 
         return {
             init,
             t,
-            setLanguage // Экспортируем функцию смены языка
+            setLanguage,
+            applyTranslationsToDOM // Экспортируем на всякий случай
         };
     };
-
 })(window);

@@ -117,6 +117,7 @@
                 e.preventDefault();
                 const cameraId = parseInt(cameraItem.dataset.cameraId, 10);
                 const labels = {
+                    open_in_browser: `🌐  ${App.t('context_open_in_browser')}`,
                     files: `🗂️  ${App.t('context_file_manager')}`,
                     ssh: `💻  ${App.t('context_ssh')}`,
                     settings: `⚙️  ${App.t('context_settings')}`,
@@ -144,6 +145,9 @@
             };
 
             switch(command) {
+                case 'open_in_browser': 
+                    window.api.openInBrowser(camera.ip); 
+                    break;
                 case 'files': window.api.openFileManager(cameraData); break;
                 case 'ssh': window.api.openSshTerminal(cameraData); break;
                 case 'settings': App.modalHandler.openSettingsModal(cameraId); break;

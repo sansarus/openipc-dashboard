@@ -29,6 +29,7 @@
   "connecting": "Connecting...",
   "error": "Error",
   "unknown_error": "Unknown error",
+  "cancel_reconnect": "Cancel",
   "stream_died_reconnecting": "Connection lost. Reconnecting in 5s...",
   "switch_stream": "Switching stream...",
   "switch_fullscreen": "Switching...",
@@ -37,6 +38,7 @@
   "context_settings": "Settings",
   "context_edit": "Edit",
   "context_delete": "Delete",
+  "context_open_in_browser": "Open in Browser",
   "general_settings_title": "General Settings",
   "camera_settings_title_prefix": "Settings",
   "loading_settings_error": "Failed to load current settings",
@@ -85,5 +87,21 @@
   "archive_placeholder": "Select a recording to view",
   "archive_delete": "Delete",
   "archive_show_in_folder": "Show in folder",
-  "archive_no_recordings": "No recordings."
+  "archive_no_recordings": "No recordings.",
+  
+  "update_checking": "Checking...",
+  "update_check_prompt": "Press the button to check for updates...",
+  "update_available": "New version available: {{version}}",
+  "update_downloading": "Downloading... {{percent}}%",
+  "update_downloaded": "Update downloaded! Please restart the application.",
+  "update_error": "Update error: {{message}}",
+  "update_latest": "You have the latest version.",
+  "update_available_short": "Update available!",
+  "update_downloaded_short": "Update downloaded.",
+  "update_error_short": "Update error",
+  
+  "update_header": "Application Update",
+  "update_status_label": "Current Status",
+  "update_action_label": "Action",
+  "update_check_button": "Check for Updates"
 }

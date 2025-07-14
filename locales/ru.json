@@ -29,6 +29,7 @@
   "connecting": "Подключение...",
   "error": "Ошибка",
   "unknown_error": "Неизвестная ошибка",
+  "cancel_reconnect": "Отмена",
   "stream_died_reconnecting": "Потеря связи. Переподключение через 5с...",
   "switch_stream": "Переключение потока...",
   "switch_fullscreen": "Переключение...",
@@ -37,6 +38,7 @@
   "context_settings": "Настройки",
   "context_edit": "Редактировать",
   "context_delete": "Удалить",
+  "context_open_in_browser": "Открыть в браузере",
   "general_settings_title": "Общие настройки",
   "camera_settings_title_prefix": "Настройки",
   "loading_settings_error": "Не удалось загрузить текущие настройки",
@@ -85,5 +87,21 @@
   "archive_placeholder": "Выберите запись для просмотра",
   "archive_delete": "Удалить",
   "archive_show_in_folder": "Показать в папке",
-  "archive_no_recordings": "Нет записей."
+  "archive_no_recordings": "Нет записей.",
+  
+  "update_checking": "Проверка...",
+  "update_check_prompt": "Нажмите кнопку для проверки...",
+  "update_available": "Доступна новая версия: {{version}}",
+  "update_downloading": "Загрузка... {{percent}}%",
+  "update_downloaded": "Обновление загружено! Перезапустите приложение.",
+  "update_error": "Ошибка обновления: {{message}}",
+  "update_latest": "У вас установлена последняя версия.",
+  "update_available_short": "Доступно обновление!",
+  "update_downloaded_short": "Обновление загружено.",
+  "update_error_short": "Ошибка обновления",
+  
+  "update_header": "Обновление приложения",
+  "update_status_label": "Текущий статус",
+  "update_action_label": "Действие",
+  "update_check_button": "Проверить обновления"
 }

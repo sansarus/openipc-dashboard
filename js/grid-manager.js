@@ -7,6 +7,7 @@
         const gridContainer = document.getElementById('grid-container');
         const layoutControls = document.getElementById('layout-controls');
         const MAX_GRID_SIZE = 64;
+        let reconnectTimers = {};
 
         let gridCols = 2;
         let gridRows = 2;
@@ -307,6 +308,11 @@
         }
 
         async function stopStreamInCell(cellIndex, clearCellUI = true) {
+            if (reconnectTimers[cellIndex]) { 
+                clearTimeout(reconnectTimers[cellIndex]); 
+                delete reconnectTimers[cellIndex];      
+            }                                          
+
             const state = gridCellsState[cellIndex];
             await destroyPlayerInCell(cellIndex);
             if (state) {
@@ -384,23 +390,50 @@
                 }
             }
         }
-
+        
         function handleStreamDeath(uniqueStreamIdentifier) {
             const cellIndex = gridCellsState.findIndex(s => s?.uniqueStreamIdentifier === uniqueStreamIdentifier);
             if (cellIndex === -1) return;
-
+    
+            if (reconnectTimers[cellIndex]) {
+                clearTimeout(reconnectTimers[cellIndex]);
+            }
+    
             const { camera, streamId } = gridCellsState[cellIndex];
             const cellElement = document.querySelector(`[data-cell-id='${cellIndex}']`);
             if (cellElement) {
-                cellElement.innerHTML = `<span>${App.t('stream_died_reconnecting')}</span>`;
+                cellElement.innerHTML = `
+                    <div style="text-align: center; padding: 10px;">
+                        <span>${App.t('stream_died_reconnecting')}</span>
+                        <button class="cancel-reconnect-btn" style="display: block; margin: 10px auto 0; padding: 5px 10px; background-color: #555; border: 1px solid #666; color: white; border-radius: 4px; cursor: pointer;">
+                            ${App.t('cancel_reconnect')}
+                        </button>
+                    </div>
+                `;
                 cellElement.classList.remove('active');
                 cellElement.draggable = false;
+    
+                const cancelButton = cellElement.querySelector('.cancel-reconnect-btn');
+                if (cancelButton) {
+                    cancelButton.onclick = (e) => {
+                        e.stopPropagation();
+                        console.log(`[Grid] Reconnect for cell ${cellIndex} cancelled by user.`);
+                        clearTimeout(reconnectTimers[cellIndex]);
+                        delete reconnectTimers[cellIndex];
+                        stopStreamInCell(cellIndex, true); 
+                    };
+                }
             }
-            gridCellsState[cellIndex] = null; 
+            gridCellsState[cellIndex] = null;
             console.log(`[Grid] Stream ${uniqueStreamIdentifier} died. Reconnecting in 5 seconds.`);
-            setTimeout(() => {
-                if (!gridCellsState[cellIndex]) startStreamInCell(cellIndex, camera.id, streamId);
-                else console.log(`[Grid] Reconnect cancelled for cell ${cellIndex}, it's already occupied.`);
+            
+            reconnectTimers[cellIndex] = setTimeout(() => {
+                delete reconnectTimers[cellIndex];
+                if (!gridCellsState[cellIndex]) {
+                    startStreamInCell(cellIndex, camera.id, streamId);
+                } else {
+                    console.log(`[Grid] Reconnect cancelled for cell ${cellIndex}, it's already occupied.`);
+                }
             }, 5000);
         }
         
@@ -455,6 +488,7 @@
                 if (state && state.camera) {
                     e.preventDefault();
                     const labels = {
+                        open_in_browser: `🌐  ${App.t('context_open_in_browser')}`,
                         files: `🗂️  ${App.t('context_file_manager')}`,
                         ssh: `💻  ${App.t('context_ssh')}`,
                         settings: `⚙️  ${App.t('context_settings')}`,
@@ -469,6 +503,7 @@
                     toggleFullscreen(fullscreenCellIndex);
                 }
             });
+            window.addEventListener('language-changed', updatePlaceholdersLanguage);
         }
 
         return {
