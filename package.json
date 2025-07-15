@@ -1,6 +1,6 @@
 {
   "name": "openipc-dashboard",
-  "version": "2.4.3",
+  "version": "2.4.4",
   "description": "App for managing OpenIPC cameras",
   "main": "main.js",
   "scripts": {
@@ -31,6 +31,9 @@
     "appId": "com.vavol.openipcdashboard",
     "productName": "DASHBOARD for OpenIPC",
     "copyright": "Copyright © 2025 Rinat Ibragimov",
+    
+    "dereference": true,
+
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -55,8 +58,7 @@
           "to": "lib/libfuse.so.2",
           "filter": [
             "**/*"
-          ],
-          "dereference": true
+          ]
         }
       ]
     },
