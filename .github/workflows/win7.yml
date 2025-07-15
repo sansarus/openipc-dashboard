@@ -1,0 +1,43 @@
+
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
+
+jobs:
+  release:
+    # Используем матрицу, чтобы запустить сборку на разных ОС
+    
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    # Указываем, что сборка будет происходить на ОС из матрицы
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Check out git repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+      
+      # Для Linux могут понадобиться доп. зависимости для сборки
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libarchive-tools
+
+      - name: Build and release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: npm run dist -- --publish always
