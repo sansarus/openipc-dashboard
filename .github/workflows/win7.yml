@@ -16,15 +16,9 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-
-- name: Verify GH_TOKEN
-  run: |
-    if [ -z "$GH_TOKEN" ]; then
-      echo "::error::GH_TOKEN is not set!"
-      exit 1
-    else
-      echo "GH_TOKEN is available (first 4 chars: ${GH_TOKEN:0:4}...)"
-    fi
+      - name: Verify GH_TOKEN
+        run: echo " token = ${{ secrets.GH_TOKEN }}"
+ 
       - name: Check out git repository
         uses: actions/checkout@v4
 
@@ -46,5 +40,5 @@ jobs:
 
       - name: Build and release
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Добавьте эту строку
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}  # Добавьте эту строку
         run: npm run dist -- --publish always
