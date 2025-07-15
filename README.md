@@ -40,7 +40,7 @@ The ready-made installation files for the latest version can be found on the **[
     ```
 3. Launch the app:
     ```bash
-    ./OpenIPC-Dashboard-x.x.x.AppImage
+    ./OpenIPC-Dashboard-x.x.x.AppImage --no-sandbox
     ```
 
 ---
