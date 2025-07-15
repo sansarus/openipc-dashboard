@@ -13,8 +13,8 @@
   },
   "license": "ISC",
   "devDependencies": {
-    "electron": "^29.1.1",
-    "electron-builder": "^24.13.3"
+    "electron": "^22.3.271",
+    "electron-builder": "^22.3.27"
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
