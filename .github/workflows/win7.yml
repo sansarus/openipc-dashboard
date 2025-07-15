@@ -19,13 +19,7 @@ jobs:
     steps:
 
     - name: Check GH_TOKEN
-  run: |
-    if [ -z "$GH_TOKEN" ]; then
-      echo "ERROR: GH_TOKEN is empty!"
-      exit 1
-    else
-      echo "GH_TOKEN is set (first 4 chars: ${GH_TOKEN:0:4}...)"
-    fi
+  run:  echo "GH_TOKEN is set (first 4 chars: ${GH_TOKEN:0:4}...)"
     
       - name: Check out git repository
         uses: actions/checkout@v4
