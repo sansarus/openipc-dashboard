@@ -49,17 +49,16 @@
     "linux": {
       "target": "AppImage",
       "icon": "build/icon.png",
-      
       "extraFiles": [
         {
           "from": "/usr/lib/x86_64-linux-gnu/libfuse.so.2",
           "to": "lib/libfuse.so.2",
           "filter": [
             "**/*"
-          ]
+          ],
+          "dereference": true
         }
       ]
-      
     },
     "nsis": {
       "oneClick": false,
