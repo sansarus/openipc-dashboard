@@ -3,8 +3,8 @@ name: Build & Release
 
 on: workflow_dispatch
 
-env:
-      GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Добавьте эту строку
+
+    
 jobs:
   release:
     # Используем матрицу, чтобы запустить сборку на разных ОС
@@ -38,5 +38,5 @@ jobs:
 
       - name: Build and release
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Добавьте эту строку
         run: npm run dist -- --publish always
