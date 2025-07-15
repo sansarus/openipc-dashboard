@@ -1,9 +1,6 @@
 name: Build and Publish
 
-on:
-  push:
-    tags:
-      - 'v*' # Только при пуше тегов вида v1.0.0
+on: workflow_dispatch
 
 jobs:
   build:
