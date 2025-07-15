@@ -3,6 +3,8 @@ name: Build & Release
 
 on: workflow_dispatch
 
+env:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Добавьте эту строку
 jobs:
   release:
     # Используем матрицу, чтобы запустить сборку на разных ОС
