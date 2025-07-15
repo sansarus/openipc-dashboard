@@ -1,3 +1,5 @@
+# .github/workflows/release.yml
+
 name: Build & Release
 
 on:
@@ -22,20 +24,27 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          # Рекомендуется использовать более свежую LTS-версию Node.js
+          node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        # Использование 'npm ci' быстрее и надежнее для CI
+        run: npm ci
       
-      # Для Linux могут понадобиться доп. зависимости для сборки
+      # ---> ИЗМЕНЁН ЭТОТ ШАГ <---
       - name: Install Linux dependencies
+        # Выполняем только на сборочной машине с Linux
         if: runner.os == 'Linux'
         run: |
+          # Обновляем список пакетов
           sudo apt-get update
-          sudo apt-get install -y libarchive-tools
+          # Устанавливаем libfuse2 для AppImage и другие возможные зависимости для сборки
+          # -y флаг автоматически отвечает "yes" на все запросы
+          sudo apt-get install -y libfuse2 libarchive-tools
 
       - name: Build and release
         env:
+          # Убедитесь, что у вас есть секрет GH_TOKEN с правами на запись в репозиторий
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: npm run dist -- --publish always
