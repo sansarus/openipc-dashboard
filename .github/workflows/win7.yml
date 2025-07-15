@@ -17,7 +17,7 @@ jobs:
 
     steps:
       - name: Verify GH_TOKEN
-        run: echo " token = ${{ secrets.GH_TOKEN }}"
+        run: echo "${{ secrets.GH_TOKEN }}"
  
       - name: Check out git repository
         uses: actions/checkout@v4
