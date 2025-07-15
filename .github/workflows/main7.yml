@@ -1,0 +1,36 @@
+name: Build and Publish
+
+on:
+  push:
+    tags:
+      - 'v*' # Только при пуше тегов вида v1.0.0
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write # Необходимо для создания релиза
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Важно для получения тегов
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          
+      - name: Install dependencies
+        run: npm install
+        
+      - name: Build and publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Используем встроенный токен
+        run: |
+          # Создаем тег, если он еще не существует
+          if ! git rev-parse v$npm_package_version >/dev/null 2>&1; then
+            git tag v$npm_package_version
+            git push origin v$npm_package_version
+          fi
+          npm run dist -- --publish always
