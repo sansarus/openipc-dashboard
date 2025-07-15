@@ -79,6 +79,11 @@
   "settings_app_header": "Общие настройки приложения",
   "settings_language": "Язык",
   "settings_recordings_folder": "Папка для записей",
+  "settings_hw_accel": "Аппаратное ускорение",
+  "settings_hw_accel_auto": "Авто",
+  "settings_hw_accel_nvidia": "NVIDIA (CUVID)",
+  "settings_hw_accel_intel": "Intel (QSV)",
+  "settings_hw_accel_none": "Отключено (только ЦП)",
   "settings_restart_majestic": "Перезапустить Majestic",
   "settings_kill_all": "Аварийный сброс",
 
@@ -88,6 +93,8 @@
   "archive_delete": "Удалить",
   "archive_show_in_folder": "Показать в папке",
   "archive_no_recordings": "Нет записей.",
+  "confirm_delete_recording": "Вы уверены, что хотите удалить '{{filename}}'?",
+  "error_deleting": "Ошибка удаления файла",
   
   "update_checking": "Проверка...",
   "update_check_prompt": "Нажмите кнопку для проверки...",

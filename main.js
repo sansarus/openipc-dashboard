@@ -1,4 +1,3 @@
-// --- main.js (полный код с изменениями) ---
 
 const { app, BrowserWindow, ipcMain, Menu, clipboard, dialog, shell, protocol } = require('electron');
 const path = require('path');
@@ -7,7 +6,7 @@ const fsPromises = require('fs').promises;
 const net = require('net');
 const os = require('os');
 const { spawn, exec } = require('child_process');
-const axios = require('axios');
+const axios =require('axios');
 const { Client } = require('ssh2');
 const WebSocket = require('ws');
 const crypto = require('crypto');
@@ -15,7 +14,14 @@ const ffmpeg = require('@ffmpeg-installer/ffmpeg');
 const keytar = require('keytar');
 const { autoUpdater } = require('electron-updater');
 
-// Отключаем sandbox для Linux, чтобы избежать проблем с AppImage
+if (process.platform === 'linux') {
+    app.commandLine.appendSwitch('--no-sandbox');
+}
+
+
+
+app.commandLine.appendSwitch('force_high_performance_gpu');
+
 if (process.platform === 'linux') {
     app.commandLine.appendSwitch('--no-sandbox');
 }
@@ -51,6 +57,71 @@ let sshWindows = {};
 let fileManagerConnections = {};
 let appSettingsCache = null;
 
+// --- ИЗМЕНЁННАЯ ФУНКЦИЯ ---
+// Принимает streamId, чтобы применять масштабирование условно
+function getHwAccelOptions(codec, preference, streamId) {
+    const isSD = streamId === 1;
+
+    // --- NVIDIA ---
+    if (preference === 'nvidia') {
+        const decoder = codec === 'h264' ? 'h264_cuvid' : 'hevc_cuvid';
+        const decoderArgs = ['-c:v', decoder];
+        if (isSD) {
+            // Опция -resize специфична для декодера cuvid и эффективнее, чем фильтр scale_npp
+            decoderArgs.push('-resize', '640x360');
+        }
+        console.log(`[FFMPEG] Using HW Accel: ${decoder} ${isSD ? 'with built-in resize' : 'for HD'}`);
+        // Для mpeg1video все равно нужен формат yuv420p
+        return { decoderArgs, vfString: 'format=yuv420p' };
+    }
+
+    // --- Intel ---
+    if (preference === 'intel') {
+        const decoder = codec === 'h264' ? 'h264_qsv' : 'hevc_qsv';
+        let vfString = 'hwdownload,format=yuv420p'; // Для HD просто скачиваем кадр с GPU
+        if (isSD) {
+            vfString = 'scale_qsv=w=640:h=-2,' + vfString; // Для SD сначала масштабируем на GPU
+        }
+        console.log(`[FFMPEG] Using HW Accel: ${decoder} ${isSD ? 'with QSV scaler' : 'for HD'}`);
+        return { decoderArgs: ['-c:v', decoder], vfString };
+    }
+
+    // --- Auto / None (CPU) ---
+    let decoderArgs = [];
+    let vfString = 'format=yuv420p'; // Базовый формат пикселей
+    let platformMsg = '';
+
+    if (preference === 'auto') {
+        switch (process.platform) {
+            case 'win32':
+                decoderArgs = ['-hwaccel', 'd3d11va'];
+                platformMsg = 'Auto-selecting d3d11va for HW aacel';
+                break;
+            case 'darwin':
+                decoderArgs = ['-hwaccel', 'videotoolbox'];
+                platformMsg = 'Auto-selecting videotoolbox for HW accel';
+                break;
+            case 'linux':
+                decoderArgs = ['-hwaccel', 'vaapi'];
+                 platformMsg = 'Auto-selecting vaapi for HW accel';
+                break;
+            default:
+                platformMsg = 'Auto-selection: No hardware acceleration, using CPU.';
+                break;
+        }
+    } else { // 'none'
+        platformMsg = 'Hardware acceleration disabled by user.';
+    }
+
+    if (isSD) {
+        vfString = 'scale=w=640:h=-2,' + vfString; // Масштабирование через CPU
+    }
+    
+    console.log(`[FFMPEG] ${platformMsg}. ${isSD ? 'Using CPU scaler for SD.' : 'Processing HD.'}`);
+    return { decoderArgs, vfString };
+}
+
+
 async function getAppSettings() {
     if (appSettingsCache) {
         return appSettingsCache;
@@ -59,7 +130,10 @@ async function getAppSettings() {
         const data = await fsPromises.readFile(appSettingsPath, 'utf-8');
         appSettingsCache = JSON.parse(data);
     } catch (e) {
-        appSettingsCache = { recordingsPath: path.join(app.getPath('videos'), 'OpenIPC-VMS') };
+        appSettingsCache = { 
+            recordingsPath: path.join(app.getPath('videos'), 'OpenIPC-VMS'),
+            hwAccel: 'auto'
+        };
     }
     return appSettingsCache;
 }
@@ -135,7 +209,7 @@ async function startRecording(camera) {
     const outputPath = path.join(recordingsPath, filename);
     
     const streamPath0 = camera.streamPath0 || '/stream0';
-    const streamUrl = `rtsp://${camera.username}:${camera.password}@${camera.ip}:${camera.port || 554}${streamPath0}`;
+    const streamUrl = `rtsp://${encodeURIComponent(camera.username)}:${encodeURIComponent(camera.password)}@${camera.ip}:${camera.port || 554}${streamPath0}`;
     
     const ffmpegArgs = [
         '-rtsp_transport', 'tcp', '-i', streamUrl,
@@ -295,6 +369,7 @@ ipcMain.handle('kill-all-ffmpeg', () => {
     });
 });
 
+// --- ИЗМЕНЁННЫЙ ОБРАБОТЧИК ---
 ipcMain.handle('start-video-stream', async (event, { credentials, streamId }) => {
     const uniqueStreamIdentifier = `${credentials.id}_${streamId}`;
     if (streamManager[uniqueStreamIdentifier]) {
@@ -306,7 +381,7 @@ ipcMain.handle('start-video-stream', async (event, { credentials, streamId }) =>
         ? (credentials.streamPath0 || '/stream0') 
         : (credentials.streamPath1 || '/stream1');
         
-    const streamUrl = `rtsp://${credentials.username}:${credentials.password}@${credentials.ip}:${port}${streamPath}`;
+    const streamUrl = `rtsp://${encodeURIComponent(credentials.username)}:${encodeURIComponent(credentials.password)}@${credentials.ip}:${port}${streamPath}`;
 
     const wsPort = await getAndReserveFreePort();
     if (wsPort === null) {
@@ -315,16 +390,30 @@ ipcMain.handle('start-video-stream', async (event, { credentials, streamId }) =>
     const wss = new WebSocket.Server({ port: wsPort });
     wss.on('connection', (ws) => console.log(`[WSS] Client connected to port ${wsPort}`));
     
+    const settings = await getAppSettings();
+    
+    const cameraInfo = await axios.get(`http://${credentials.ip}/api/v1/info`, getAxiosJsonConfig(credentials)).then(res => res.data).catch(() => ({}));
+    const codec = cameraInfo.video_codec || 'h264';
+    
+    // ВЫЗОВ ОБНОВЛЕННОЙ ФУНКЦИИ С ПЕРЕДАЧЕЙ streamId
+    const { decoderArgs, vfString } = getHwAccelOptions(codec, settings.hwAccel, streamId);
+
     const ffmpegArgs = [
-        '-hwaccel', 'none',
+        ...decoderArgs, // Аргументы для декодера (могут включать -resize для SD на Nvidia)
         '-loglevel', 'error',
         '-rtsp_transport', 'tcp',
+        '-err_detect', 'ignore_err',
+        '-fflags', 'nobuffer',
+        '-flags', 'low_delay',
         '-i', streamUrl,
         '-progress', 'pipe:2', 
         '-f', 'mpegts',
         '-c:v', 'mpeg1video',
-        '-q:v', '4',
-        '-r', '25',
+        '-preset', 'ultrafast',
+        '-vf', vfString, // Видео фильтр (может включать масштабирование)
+        '-q:v', '8',
+        '-r', '20',
+        '-bf', '0',
         '-c:a', 'mp2',
         '-b:a', '128k',
         '-ar', '44100',
@@ -332,6 +421,9 @@ ipcMain.handle('start-video-stream', async (event, { credentials, streamId }) =>
         '-threads', '0',
         '-' 
     ];
+
+    console.log(`[FFMPEG] Starting stream ${uniqueStreamIdentifier} with args:`, ffmpegArgs.join(' '));
+
     const ffmpegProcess = spawn(ffmpegPath, ffmpegArgs, { detached: false, windowsHide: true });
     
     ffmpegProcess.on('error', (err) => {
@@ -345,8 +437,13 @@ ipcMain.handle('start-video-stream', async (event, { credentials, streamId }) =>
     });
 
     let statsBuffer = '';
+    let lastErrorOutput = '';
     ffmpegProcess.stderr.on('data', (data) => {
-        statsBuffer += data.toString();
+        const errorString = data.toString();
+        if (errorString) {
+           lastErrorOutput = errorString.trim();
+        }
+        statsBuffer += errorString;
         const statsBlocks = statsBuffer.split('progress=');
         if (statsBlocks.length > 1) {
             for (let i = 0; i < statsBlocks.length - 1; i++) {
@@ -374,6 +471,9 @@ ipcMain.handle('start-video-stream', async (event, { credentials, streamId }) =>
 
     ffmpegProcess.on('close', (code) => {
         console.warn(`[FFMPEG] Process ${uniqueStreamIdentifier} exited with code ${code}`);
+        if(code !== 0) {
+            console.error(`[FFMPEG Last Stderr] ${uniqueStreamIdentifier}: ${lastErrorOutput}`);
+        }
         if (streamManager[uniqueStreamIdentifier]) {
             streamManager[uniqueStreamIdentifier].wss.close();
             releasePort(wsPort);
@@ -725,7 +825,7 @@ ipcMain.handle('open-ssh-terminal', (event, camera) => {
     const sshWindow = new BrowserWindow({
         width: 800, height: 600,
         title: `SSH Terminal: ${camera.name}`,
-        webPreferences: { preload: path.join(__dirname, 'terminal-preload.js') }
+        webPreferences: { preload: path.join(__dirname, 'preload.js') }
     });
     sshWindow.loadFile('terminal.html', { query: { camera: JSON.stringify(camera) } });
     

@@ -24,12 +24,12 @@
     }
 
     async function loadArchiveList() {
-        archiveListEl.innerHTML = '<li>Загрузка...</li>';
+        archiveListEl.innerHTML = `<li>${App.t('loading_text')}</li>`;
         const files = await window.api.getRecordingsList();
         archiveListEl.innerHTML = '';
 
         if (files.length === 0) {
-            archiveListEl.innerHTML = '<li>Нет записей.</li>';
+            archiveListEl.innerHTML = `<li>${App.t('archive_no_recordings')}</li>`;
             return;
         }
 
@@ -79,15 +79,16 @@
         archiveRefreshBtn.addEventListener('click', loadArchiveList);
 
         archiveDeleteBtn.addEventListener('click', async () => {
-            if (!selectedArchiveFile || !confirm(`Вы уверены, что хотите удалить файл "${selectedArchiveFile}"?`)) return;
+            const confirmationMessage = App.t('confirm_delete_recording', { filename: selectedArchiveFile });
+            if (!selectedArchiveFile || !confirm(confirmationMessage)) return;
+
             const result = await window.api.deleteRecording(selectedArchiveFile);
             if (result.success) {
-                // We don't have access to showToast here, maybe we can expose it on App
-                console.log('Файл удален.');
+                console.log('File deleted.');
                 resetArchivePlayer();
                 loadArchiveList();
             } else {
-                alert(`Ошибка удаления: ${result.error}`);
+                alert(`${App.t('error_deleting')}: ${result.error}`);
             }
         });
 

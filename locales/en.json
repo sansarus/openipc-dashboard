@@ -79,6 +79,11 @@
   "settings_app_header": "Application Settings",
   "settings_language": "Language",
   "settings_recordings_folder": "Recordings Folder",
+  "settings_hw_accel": "Hardware Acceleration",
+  "settings_hw_accel_auto": "Auto",
+  "settings_hw_accel_nvidia": "NVIDIA (CUVID)",
+  "settings_hw_accel_intel": "Intel (QSV)",
+  "settings_hw_accel_none": "Disabled (CPU only)",
   "settings_restart_majestic": "Restart Majestic",
   "settings_kill_all": "Emergency Reset",
 
@@ -88,6 +93,8 @@
   "archive_delete": "Delete",
   "archive_show_in_folder": "Show in folder",
   "archive_no_recordings": "No recordings.",
+  "confirm_delete_recording": "Are you sure you want to delete '{{filename}}'?",
+  "error_deleting": "Error deleting file",
   
   "update_checking": "Checking...",
   "update_check_prompt": "Press the button to check for updates...",

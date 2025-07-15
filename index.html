@@ -51,12 +51,19 @@
             border: 1px solid var(--border-color); 
             cursor: pointer; 
             text-align: center; 
-            transition: background-color 0.2s, border-color 0.2s;
+            transition: background-color 0.2s, border-color 0.2s, transform 0.1s ease-in-out;
             padding: 5px;
             box-sizing: border-box;
             object-fit: contain;
+            overflow: hidden;
+            z-index: 1;
         }
 
+        .grid-cell:hover {
+            z-index: 99;
+            transform: scale(1.02);
+        }
+        
         .grid-cell.fullscreen { 
             position: fixed !important; 
             top: 0 !important; 
@@ -70,6 +77,12 @@
             background-color: #000; 
         }
         
+        .grid-cell.fullscreen .cell-controls,
+        .grid-cell.fullscreen .cell-name,
+        .grid-cell.fullscreen .cell-stats {
+            opacity: 1;
+        }
+        
         .grid-cell.fullscreen .cell-controls {
             position: fixed;
             top: 10px;
@@ -77,17 +90,72 @@
         }
 
         .grid-cell.drag-over { border: 2px dashed var(--accent-color); background-color: var(--bg-light); }
-        .grid-cell canvas { width: 100%; height: 100%; object-fit: contain; border-radius: 4px; }
-        .grid-cell.active { border: 2px solid var(--accent-color); }
-        .cell-controls { position: absolute; top: 5px; right: 5px; background-color: rgba(0,0,0,0.6); border-radius: 4px; z-index: 10; display: flex; gap: 5px; pointer-events: all; padding: 2px 4px; }
         
+        .grid-cell canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 4px;
+            pointer-events: none;
+        }
+
+        .grid-cell.active { border: 2px solid var(--accent-color); }
+        
+        .cell-controls {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: rgba(0,0,0,0.6);
+            border-radius: 4px;
+            z-index: 10;
+            display: flex;
+            gap: 5px;
+            pointer-events: all;
+            padding: 2px 4px;
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
+        }
+        
+        .grid-cell:hover .cell-controls,
+        .grid-cell:hover .cell-name,
+        .grid-cell:hover .cell-stats {
+            opacity: 1;
+        }
+
         .cell-controls button { background: none; border: none; color: white; cursor: pointer; font-size: 16px; padding: 0; display: flex; align-items: center; }
         .cell-controls button.fullscreen-btn { font-size: 20px; }
         .cell-controls button.record-btn.recording { color: var(--danger-color); animation: pulse-rec 1.5s infinite; }
         @keyframes pulse-rec { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
         
-        .cell-name { position: absolute; bottom: 5px; right: 10px; background-color: rgba(0,0,0,0.6); color: white; padding: 3px 8px; border-radius: 4px; font-size: 13px; z-index: 10; pointer-events: none; }
-        .cell-stats { position: absolute; bottom: 5px; left: 10px; background-color: rgba(0,0,0,0.6); color: #fff; padding: 3px 8px; border-radius: 4px; font-size: 13px; font-family: monospace; pointer-events: none; }
+        .cell-name {
+            position: absolute;
+            bottom: 5px;
+            right: 10px;
+            background-color: rgba(0,0,0,0.6);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 13px;
+            z-index: 10;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
+        }
+
+        .cell-stats {
+            position: absolute;
+            bottom: 5px;
+            left: 10px;
+            background-color: rgba(0,0,0,0.6);
+            color: #fff;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: monospace;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
+        }
         
         .grid-cell .placeholder-icon { font-size: 48px; margin-bottom: 10px; }
 
@@ -369,8 +437,14 @@
                            <input type="text" id="app-settings-recordings-path" readonly>
                            <button id="select-rec-path-btn" style="padding: 0 10px; min-width: 40px; height: 35px;"><i class="material-icons" style="font-size: 20px;">folder_open</i></button>
                         </div>
+                        <span data-i18n-key="settings_hw_accel"></span>
+                        <select id="app-settings-hw-accel">
+                            <option value="auto" data-i18n-key="settings_hw_accel_auto"></option>
+                            <option value="nvidia" data-i18n-key="settings_hw_accel_nvidia"></option>
+                            <option value="intel" data-i18n-key="settings_hw_accel_intel"></option>
+                            <option value="none" data-i18n-key="settings_hw_accel_none"></option>
+                        </select>
                     </div>
-                    <!-- === ИЗМЕНЕННЫЙ БЛОК === -->
                     <h3 data-i18n-key="update_header"></h3>
                     <div class="form-grid simple">
                         <span data-i18n-key="update_status_label"></span>
@@ -378,7 +452,6 @@
                         <span data-i18n-key="update_action_label"></span>
                         <button id="check-for-updates-btn" style="width: 200px; justify-self: start;" data-i18n-key="update_check_button"></button>
                     </div>
-                    <!-- === КОНЕЦ ИЗМЕНЕННОГО БЛОКА === -->
                 </div>
                 
                 <div id="tab-system" class="tab-content">
