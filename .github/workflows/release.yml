@@ -9,12 +9,10 @@ on:
 
 jobs:
   release:
-    # Используем матрицу, чтобы запустить сборку на разных ОС
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
 
-    # Указываем, что сборка будет происходить на ОС из матрицы
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -24,27 +22,25 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          # Рекомендуется использовать более свежую LTS-версию Node.js
           node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
-        # Использование 'npm ci' быстрее и надежнее для CI
         run: npm ci
       
       # ---> ИЗМЕНЁН ЭТОТ ШАГ <---
-      - name: Install Linux dependencies
-        # Выполняем только на сборочной машине с Linux
+      - name: Install Linux dependencies and set FUSE_PATH
         if: runner.os == 'Linux'
         run: |
-          # Обновляем список пакетов
           sudo apt-get update
-          # Устанавливаем libfuse2 для AppImage и другие возможные зависимости для сборки
-          # -y флаг автоматически отвечает "yes" на все запросы
           sudo apt-get install -y libfuse2 libarchive-tools
+          # Находим реальный путь к библиотеке libfuse.so.2
+          FUSE_REAL_PATH=$(readlink -f /usr/lib/x86_64-linux-gnu/libfuse.so.2)
+          echo "Found libfuse.so.2 at: ${FUSE_REAL_PATH}"
+          # Экспортируем этот путь в переменные окружения для последующих шагов
+          echo "FUSE_PATH=${FUSE_REAL_PATH}" >> $GITHUB_ENV
 
       - name: Build and release
         env:
-          # Убедитесь, что у вас есть секрет GH_TOKEN с правами на запись в репозиторий
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: npm run dist -- --publish always
