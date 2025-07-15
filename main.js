@@ -1,12 +1,20 @@
+const { app } = require('electron');
 
-const { app, BrowserWindow, ipcMain, Menu, clipboard, dialog, shell, protocol } = require('electron');
+// Решает проблему с песочницей на Linux для AppImage.
+// Мы добавляем флаг до того, как Electron успеет полностью инициализироваться.
+if (process.platform === 'linux') {
+    app.commandLine.appendSwitch('--no-sandbox');
+}
+
+// Теперь идут все остальные require
+const { BrowserWindow, ipcMain, Menu, clipboard, dialog, shell, protocol } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const fsPromises = require('fs').promises;
 const net = require('net');
 const os = require('os');
 const { spawn, exec } = require('child_process');
-const axios =require('axios');
+const axios = require('axios');
 const { Client } = require('ssh2');
 const WebSocket = require('ws');
 const crypto = require('crypto');
@@ -14,17 +22,15 @@ const ffmpeg = require('@ffmpeg-installer/ffmpeg');
 const keytar = require('keytar');
 const { autoUpdater } = require('electron-updater');
 
-if (process.platform === 'linux') {
-    app.commandLine.appendSwitch('--no-sandbox');
-}
-
-
+// Мы уже добавили флаг --no-sandbox выше, поэтому этот блок больше не нужен.
+// app.commandLine.appendSwitch('--no-sandbox'); // УДАЛЕНО
 
 app.commandLine.appendSwitch('force_high_performance_gpu');
 
-if (process.platform === 'linux') {
-    app.commandLine.appendSwitch('--no-sandbox');
-}
+// Второй дублирующий блок тоже удален.
+// if (process.platform === 'linux') {
+//     app.commandLine.appendSwitch('--no-sandbox');
+// }
 
 const ffmpegPath = ffmpeg.path.replace('app.asar', 'app.asar.unpacked');
 
