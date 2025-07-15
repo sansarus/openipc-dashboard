@@ -1,12 +1,5 @@
 const { app } = require('electron');
 
-// Решает проблему с песочницей на Linux для AppImage.
-// Мы добавляем флаг до того, как Electron успеет полностью инициализироваться.
-if (process.platform === 'linux') {
-    app.commandLine.appendSwitch('--no-sandbox');
-}
-
-// Теперь идут все остальные require
 const { BrowserWindow, ipcMain, Menu, clipboard, dialog, shell, protocol } = require('electron');
 const path = require('path');
 const fs = require('fs');
