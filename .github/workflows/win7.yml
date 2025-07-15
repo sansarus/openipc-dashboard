@@ -9,7 +9,7 @@ jobs:
     
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [windows-latest]
 
     # Указываем, что сборка будет происходить на ОС из матрицы
     runs-on: ${{ matrix.os }}
