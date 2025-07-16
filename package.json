@@ -13,8 +13,8 @@
   },
   "license": "ISC",
   "devDependencies": {
-    "electron": "^29.1.1",
-    "electron-builder": "^24.13.3"
+    "electron": "^22.3.27",
+    "electron-builder": "^22.3.27"
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
@@ -78,7 +78,7 @@
     ],
     "publish": {
       "provider": "github",
-      "owner": "Rinibr",
+      "owner": "sansarus",
       "repo": "openipc-dashboard"
     }
   }
