@@ -21,7 +21,7 @@ The application was created using Electron and provides a single interface for v
 
 ## Installation
 
-The ready-made installation files for the latest version can be found on the **[Releases] page(https://github.com/openipc/dashboard/releases )**.
+The ready-made installation files for the latest version can be found on the **[Releases page](https://github.com/openipc/dashboard/releases)**.
 
 
 #### Windows
@@ -40,7 +40,7 @@ The ready-made installation files for the latest version can be found on the **[
     ```
 3. Launch the app:
     ```bash
-    ./OpenIPC-Dashboard-x.x.x.AppImage
+    ./OpenIPC-Dashboard-x.x.x.AppImage --no-sandbox
     ```
 
 ---
