@@ -56,7 +56,7 @@ let sshWindows = {};
 let fileManagerConnections = {};
 let appSettingsCache = null;
 
-// --- ИЗМЕНЁННАЯ ФУНКЦИЯ ---
+// --- ИЗМЕНЁННАЯ ФУНКЦИЯ (ВЕРСИЯ С ИСПРАВЛЕНИЕМ ДЛЯ LINUX) ---
 // Принимает streamId, чтобы применять масштабирование условно
 function getHwAccelOptions(codec, preference, streamId) {
     const isSD = streamId === 1;
@@ -100,9 +100,11 @@ function getHwAccelOptions(codec, preference, streamId) {
                 decoderArgs = ['-hwaccel', 'videotoolbox'];
                 platformMsg = 'Auto-selecting videotoolbox for HW accel';
                 break;
+            // --- ИСПРАВЛЕНИЕ ДЛЯ LINUX ---
+            // Мы больше не форсируем VAAPI в авто-режиме, так как это может вызвать сбой, если драйверы не установлены.
+            // Теперь Linux в режиме "Авто" будет использовать стабильное программное декодирование (CPU).
             case 'linux':
-                decoderArgs = ['-hwaccel', 'vaapi'];
-                 platformMsg = 'Auto-selecting vaapi for HW accel';
+                 platformMsg = 'Auto-selection on Linux: Using CPU for stability. For HW accel, ensure drivers are installed and configure manually if needed.';
                 break;
             default:
                 platformMsg = 'Auto-selection: No hardware acceleration, using CPU.';

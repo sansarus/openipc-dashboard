@@ -1,4 +1,4 @@
-// js/grid-manager.js (ФИНАЛЬНАЯ ВЕРСИЯ С ИСПРАВЛЕНИЯМИ)
+// js/grid-manager.js (ФИНАЛЬНАЯ ИСПРАВЛЕННАЯ ВЕРСИЯ)
 
 (function(window) {
     window.AppModules = window.AppModules || {};
@@ -33,13 +33,17 @@
         }
 
         function getGridState() {
-            return gridCellsState;
+            return gridCellsState.map(cell => {
+                if (!cell || !cell.camera) return null;
+                return { camera: { id: cell.camera.id }, streamId: cell.streamId };
+            });
         }
-
+        
         function setInitialState(state) {
             gridCols = state.layout.cols;
             gridRows = state.layout.rows;
-            gridCellsState = state.gridState;
+            // ИСПРАВЛЕНИЕ: Правильно инициализируем состояние при загрузке
+            gridCellsState = state.gridState.map(s => s ? { ...s, player: null, uniqueStreamIdentifier: null } : null);
         }
 
         function initializeLayoutControls() {
@@ -74,7 +78,7 @@
             
             if (newVisibleSize < oldVisibleSize) {
                 for (let i = newVisibleSize; i < oldVisibleSize; i++) {
-                    if (gridCellsState[i] && gridCellsState[i].player) {
+                    if (gridCellsState[i]) {
                         await stopStreamInCell(i, false); 
                     }
                 }
@@ -110,132 +114,89 @@
         }
         
         async function render() {
-            gridContainer.style.position = 'relative';
             gridContainer.innerHTML = ''; 
-        
             for (let i = 0; i < MAX_GRID_SIZE; i++) {
                 const cell = document.createElement('div');
                 cell.className = 'grid-cell';
-                cell.style.position = 'absolute';
-                cell.style.padding = '5px';
-                cell.style.boxSizing = 'border-box';
-                
                 cell.dataset.cellId = i;
                 cell.style.display = 'none';
                 cell.ondblclick = () => toggleFullscreen(i);
-                
                 cell.innerHTML = `<span><i class="material-icons placeholder-icon">add_photo_alternate</i><br>${App.t('drop_camera_here')}</span>`;
-        
                 cell.addEventListener('dragover', (e) => { e.preventDefault(); cell.classList.add('drag-over'); });
                 cell.addEventListener('dragleave', () => cell.classList.remove('drag-over'));
-                cell.addEventListener('drop', (e) => {
+                cell.addEventListener('drop', async (e) => {
                     e.preventDefault();
                     cell.classList.remove('drag-over');
-                    
                     const sourceCellIndex = e.dataTransfer.getData("application/x-grid-cell-index");
                     const targetCellIndex = i;
-        
                     if (sourceCellIndex !== "") {
                         swapStreams(parseInt(sourceCellIndex, 10), targetCellIndex);
                     } else {
                         const cameraId = parseInt(e.dataTransfer.getData('text/plain'), 10);
-                        startStreamInCell(targetCellIndex, cameraId);
+                        await startStreamInCell(targetCellIndex, cameraId);
                     }
                 });
                 gridContainer.appendChild(cell);
             }
             
-            const totalVisibleCells = gridCols * gridRows;
-            for (let i = 0; i < totalVisibleCells; i++) {
+            for (let i = 0; i < gridCols * gridRows; i++) {
                 if (gridCellsState[i] && gridCellsState[i].camera) {
                     await startStreamInCell(i, gridCellsState[i].camera.id, gridCellsState[i].streamId);
                 }
             }
-        
             updateGridLayoutView();
         }
 
         function setupDragStartForCell(cell, index) {
-            if (cell._dragStartHandler) {
-                cell.removeEventListener('dragstart', cell._dragStartHandler);
-            }
-            
-            cell._dragStartHandler = (e) => {
-                e.dataTransfer.setData("application/x-grid-cell-index", index);
-                e.dataTransfer.effectAllowed = 'move';
-            };
-            
+            if (cell._dragStartHandler) cell.removeEventListener('dragstart', cell._dragStartHandler);
+            cell._dragStartHandler = (e) => { e.dataTransfer.setData("application/x-grid-cell-index", index); e.dataTransfer.effectAllowed = 'move'; };
             cell.addEventListener('dragstart', cell._dragStartHandler);
         }
 
         function swapStreams(sourceIndex, targetIndex) {
             if (sourceIndex === targetIndex) return;
-
             const sourceCell = gridContainer.querySelector(`[data-cell-id='${sourceIndex}']`);
             const targetCell = gridContainer.querySelector(`[data-cell-id='${targetIndex}']`);
-
             [gridCellsState[sourceIndex], gridCellsState[targetIndex]] = [gridCellsState[targetIndex], gridCellsState[sourceIndex]];
-
             const tempContainer = document.createDocumentFragment();
-            while (sourceCell.firstChild) {
-                tempContainer.appendChild(sourceCell.firstChild);
-            }
-            while (targetCell.firstChild) {
-                sourceCell.appendChild(targetCell.firstChild);
-            }
-            while (tempContainer.firstChild) {
-                targetCell.appendChild(tempContainer.firstChild);
-            }
-
+            while (sourceCell.firstChild) { tempContainer.appendChild(sourceCell.firstChild); }
+            while (targetCell.firstChild) { sourceCell.appendChild(targetCell.firstChild); }
+            while (tempContainer.firstChild) { targetCell.appendChild(tempContainer.firstChild); }
             const sourceState = gridCellsState[sourceIndex];
             const targetState = gridCellsState[targetIndex];
-
             sourceCell.draggable = !!sourceState;
             if (sourceState) setupDragStartForCell(sourceCell, sourceIndex);
-
             targetCell.draggable = !!targetState;
             if (targetState) setupDragStartForCell(targetCell, targetIndex);
-            
             sourceCell.classList.toggle('active', !!sourceState);
             targetCell.classList.toggle('active', !!targetState);
-            
             const placeholderHTML = `<span><i class="material-icons placeholder-icon">add_photo_alternate</i><br>${App.t('drop_camera_here')}</span>`;
             if (!sourceState) sourceCell.innerHTML = placeholderHTML;
             if (!targetState) targetCell.innerHTML = placeholderHTML;
-
             App.saveConfiguration();
         }
         
         async function startStreamInCell(cellIndex, cameraId, streamId = null) {
             const camera = App.cameras.find(c => c.id === cameraId);
             if (!camera) return;
-
-            const finalStreamId = streamId !== null ? streamId : (parseInt(camera.streamId, 10) || 1);
-
-            if (gridCellsState[cellIndex] && gridCellsState[cellIndex].player) {
+            const finalStreamId = streamId !== null ? streamId : 0;
+            if (gridCellsState[cellIndex] && (gridCellsState[cellIndex].player || gridCellsState[cellIndex].uniqueStreamIdentifier)) {
                  await destroyPlayerInCell(cellIndex);
             }
-
             const cellElement = document.querySelector(`[data-cell-id='${cellIndex}']`);
             if (!cellElement) return;
-
             cellElement.innerHTML = `<span>${App.t('connecting')}</span>`;
             cellElement.classList.add('active');
             cellElement.draggable = true;
             setupDragStartForCell(cellElement, cellIndex);
-
             const uniqueStreamIdentifier = `${camera.id}_${finalStreamId}`;
             gridCellsState[cellIndex] = { camera, streamId: finalStreamId, player: null, uniqueStreamIdentifier };
             App.saveConfiguration();
-            
             const result = await window.api.startVideoStream({ credentials: camera, streamId: finalStreamId });
-
             if (!gridCellsState[cellIndex] || gridCellsState[cellIndex].uniqueStreamIdentifier !== uniqueStreamIdentifier) {
-                console.log(`[Renderer] Stream ${uniqueStreamIdentifier} was cancelled because a newer stream is now in cell ${cellIndex}.`);
                 await window.api.stopVideoStream(uniqueStreamIdentifier);
                 return;
             }
-
             if (result.success) {
                 cellElement.innerHTML = ''; 
                 const canvas = document.createElement('canvas');
@@ -254,29 +215,7 @@
                 cellElement.appendChild(nameDiv);
                 cellElement.appendChild(statsDiv);
                 
-                const player = new JSMpeg.Player(`ws://localhost:${result.wsPort}`, { 
-                    canvas, 
-                    autoplay: true, 
-                    audio: true, 
-                    volume: 0,
-                    onVideoDecode: (decoder, time) => {
-                        if (player.firstFrameDecoded) {
-                            return;
-                        }
-                        canvas.style.width = '100%';
-                        canvas.style.height = '100%';
-                        player.firstFrameDecoded = true;
-                    },
-                    onStalled: (player) => {
-                        console.warn(`[JSMpeg] Player for ${uniqueStreamIdentifier} is stalled (waiting for data).`);
-                    },
-                    onSourceEstablished: (source) => {
-                        console.log(`[JSMpeg] WebSocket connection established for ${uniqueStreamIdentifier}.`);
-                    },
-                    onSourceCompleted: (source) => {
-                        console.warn(`[JSMpeg] WebSocket connection closed for ${uniqueStreamIdentifier}.`);
-                    }
-                });
+                const player = new JSMpeg.Player(`ws://localhost:${result.wsPort}`, { canvas, autoplay: true, audio: true, volume: 0 });
                 player.volume = 0;
 
                 controlsDiv.querySelector('.fullscreen-btn').onclick = (e) => { e.stopPropagation(); toggleFullscreen(cellIndex); };
@@ -298,118 +237,85 @@
             }
         }
         
-        async function destroyPlayerInCell(cellIndex) {
+        // --- ИСПРАВЛЕНИЕ 5: Упрощенная и надежная функция остановки потока ---
+        async function stopStreamInCell(cellIndex, clearCellUI = true) {
+            if (reconnectTimers[cellIndex]) {
+                clearTimeout(reconnectTimers[cellIndex]);
+                delete reconnectTimers[cellIndex];
+            }
+        
             const state = gridCellsState[cellIndex];
             if (!state) return;
-            if (state.player) {
-                try { state.player.destroy(); } catch (e) { console.error(`Error destroying JSMpeg player:`, e); }
-                state.player = null;
-            }
-            if (state.uniqueStreamIdentifier) {
-                await window.api.stopVideoStream(state.uniqueStreamIdentifier);
-            }
-        }
-
-        // --- ИСПРАВЛЕННАЯ ФУНКЦИЯ ---
-        async function stopStreamInCell(cellIndex, clearCellUI = true) {
-            // Очищаем таймер переподключения, если он есть
-            if (reconnectTimers[cellIndex]) { 
-                clearTimeout(reconnectTimers[cellIndex]); 
-                delete reconnectTimers[cellIndex];      
-            }                                          
         
-            // Захватываем состояние ячейки в самом начале
-            const state = gridCellsState[cellIndex];
-            
-            // Если в ячейке ничего нет, то и делать нечего
-            if (!state) {
-                return;
-            }
-        
-            // Безопасно получаем ID камеры и уникальный идентификатор потока
             const { uniqueStreamIdentifier, camera } = state;
             const cameraId = camera.id;
-
-            // Регистрируем, что поток закрывается вручную, чтобы избежать авто-переподключения
+        
             if (uniqueStreamIdentifier) {
                 manuallyClosedStreams.add(uniqueStreamIdentifier);
             }
             
-            // Уничтожаем плеер и останавливаем ffmpeg на бэкенде
+            // Сначала уничтожаем плеер и останавливаем ffmpeg
             await destroyPlayerInCell(cellIndex);
             
-            // Проверяем, нужно ли остановить запись. 
-            // Это делается только если это последняя ячейка с данной камерой.
+            // Затем проверяем, нужно ли остановить запись
             const isAnotherCellWithSameCam = gridCellsState.some(
                 (s, idx) => idx !== cellIndex && s?.camera.id === cameraId
             );
             if (App.recordingStates[cameraId] && !isAnotherCellWithSameCam) {
                 await window.api.stopRecording(cameraId);
             }
-
-            // Финальная проверка: очищаем состояние ячейки только если оно не было изменено
-            // другой операцией, пока мы ждали завершения `destroyPlayerInCell`.
-            if (gridCellsState[cellIndex] === state) {
-                gridCellsState[cellIndex] = null;
-                
-                if (clearCellUI) {
-                    const cellElement = document.querySelector(`[data-cell-id='${cellIndex}']`);
-                    if(cellElement) {
-                        cellElement.innerHTML = `<span><i class="material-icons placeholder-icon">add_photo_alternate</i><br>${App.t('drop_camera_here')}</span>`;
-                        cellElement.classList.remove('active');
-                        cellElement.draggable = false;
-                    }
+        
+            // Обновляем состояние и UI в самом конце, когда все готово
+            gridCellsState[cellIndex] = null;
+            if (clearCellUI) {
+                const cellElement = document.querySelector(`[data-cell-id='${cellIndex}']`);
+                if(cellElement) {
+                    cellElement.innerHTML = `<span><i class="material-icons placeholder-icon">add_photo_alternate</i><br>${App.t('drop_camera_here')}</span>`;
+                    cellElement.classList.remove('active');
+                    cellElement.draggable = false;
                 }
             }
             
-            // Сохраняем конфигурацию в любом случае
             await App.saveConfiguration();
         }
+
+        async function destroyPlayerInCell(cellIndex) {
+            const state = gridCellsState[cellIndex];
+            if (!state) return;
+            if (state.player) {
+                try { state.player.destroy(); } catch (e) { /* ignore */ }
+                state.player = null;
+            }
+            if (state.uniqueStreamIdentifier) {
+                await window.api.stopVideoStream(state.uniqueStreamIdentifier);
+            }
+        }
         
+        // --- ИСПРАВЛЕНИЕ 6: Исправленная логика переключения потоков ---
         async function toggleStream(cellIndex) {
             const currentState = gridCellsState[cellIndex];
             if (!currentState || !currentState.camera) return;
-
-            const cellElement = document.querySelector(`[data-cell-id='${cellIndex}']`);
-            if (!cellElement) return;
-
+            
             const newStreamId = currentState.streamId === 0 ? 1 : 0;
             const cameraId = currentState.camera.id;
-            const currentVolume = currentState.player ? currentState.player.volume : 0;
 
-            cellElement.innerHTML = `<span>${App.t('switch_stream')}</span>`;
-            cellElement.classList.add('active'); 
-            cellElement.draggable = true; 
-
-            await destroyPlayerInCell(cellIndex);
+            // Просто вызываем startStreamInCell. Он сам позаботится об очистке старого потока.
             await startStreamInCell(cellIndex, cameraId, newStreamId);
-
-            const newState = gridCellsState[cellIndex];
-            if (newState && newState.player) {
-                const newCellElement = document.querySelector(`[data-cell-id='${cellIndex}']`);
-                newState.player.volume = currentVolume;
-                const newAudioBtnIcon = newCellElement.querySelector('.audio-btn i');
-                if (newAudioBtnIcon) {
-                    newAudioBtnIcon.textContent = currentVolume === 0 ? 'volume_off' : 'volume_up';
-                }
-            }
         }
         
         async function toggleFullscreen(cellIndex) {
             const cell = document.querySelector(`[data-cell-id='${cellIndex}']`);
             const state = gridCellsState[cellIndex];
             if (!cell || !state) return;
-        
             const isCurrentlyFullscreen = cell.classList.contains('fullscreen');
-            
+            const fsBtnIcon = cell.querySelector('.fullscreen-btn i');
+
             if (isCurrentlyFullscreen) {
                 gridContainer.classList.remove('fullscreen-mode');
                 cell.classList.remove('fullscreen');
-                const fsBtnIcon = cell.querySelector('.fullscreen-btn i');
-                if(fsBtnIcon) fsBtnIcon.textContent = 'fullscreen';
+                if (fsBtnIcon) fsBtnIcon.textContent = 'fullscreen';
                 fullscreenCellIndex = null;
-            } 
-            else {
+            } else {
                 if (fullscreenCellIndex !== null) {
                     const oldFullscreenCell = document.querySelector(`[data-cell-id='${fullscreenCellIndex}']`);
                     if(oldFullscreenCell) {
@@ -418,74 +324,41 @@
                          if(oldFsBtnIcon) oldFsBtnIcon.textContent = 'fullscreen';
                     }
                 }
-                
                 fullscreenCellIndex = cellIndex;
                 gridContainer.classList.add('fullscreen-mode');
                 cell.classList.add('fullscreen');
-                const fsBtnIcon = cell.querySelector('.fullscreen-btn i');
-                if(fsBtnIcon) fsBtnIcon.textContent = 'fullscreen_exit';
+                if (fsBtnIcon) fsBtnIcon.textContent = 'fullscreen_exit';
             }
         }
         
         function handleStreamDeath(uniqueStreamIdentifier) {
             if (manuallyClosedStreams.has(uniqueStreamIdentifier)) {
                 manuallyClosedStreams.delete(uniqueStreamIdentifier);
-                console.log(`[Grid] Ignoring reconnect for manually closed stream ${uniqueStreamIdentifier}.`);
                 return;
             }
-
             const cellIndex = gridCellsState.findIndex(s => s?.uniqueStreamIdentifier === uniqueStreamIdentifier);
             if (cellIndex === -1) return;
-    
-            if (reconnectTimers[cellIndex]) {
-                clearTimeout(reconnectTimers[cellIndex]);
-            }
-    
-            const state = gridCellsState[cellIndex];
-            if (!state) return; 
-            const { camera, streamId } = state;
-
+            if (reconnectTimers[cellIndex]) clearTimeout(reconnectTimers[cellIndex]);
+            const state = { ...gridCellsState[cellIndex] };
+            if (!state.camera) return;
             const cellElement = document.querySelector(`[data-cell-id='${cellIndex}']`);
             if (cellElement) {
-                cellElement.innerHTML = `
-                    <div style="text-align: center; padding: 10px;">
-                        <span>${App.t('stream_died_reconnecting')}</span>
-                        <button class="cancel-reconnect-btn" style="display: block; margin: 10px auto 0; padding: 5px 10px; background-color: #555; border: 1px solid #666; color: white; border-radius: 4px; cursor: pointer;">
-                            ${App.t('cancel_reconnect')}
-                        </button>
-                    </div>
-                `;
+                cellElement.innerHTML = `<div style="text-align: center; padding: 10px;"><span>${App.t('stream_died_reconnecting')}</span><button class="cancel-reconnect-btn" style="display: block; margin: 10px auto 0; padding: 5px 10px;">${App.t('cancel_reconnect')}</button></div>`;
                 cellElement.classList.remove('active');
                 cellElement.draggable = false;
-    
                 const cancelButton = cellElement.querySelector('.cancel-reconnect-btn');
                 if (cancelButton) {
-                    cancelButton.onclick = (e) => {
-                        e.stopPropagation();
-                        console.log(`[Grid] Reconnect for cell ${cellIndex} cancelled by user.`);
-                        clearTimeout(reconnectTimers[cellIndex]);
-                        delete reconnectTimers[cellIndex];
-                        stopStreamInCell(cellIndex, true); 
-                    };
+                    cancelButton.onclick = (e) => { e.stopPropagation(); clearTimeout(reconnectTimers[cellIndex]); delete reconnectTimers[cellIndex]; stopStreamInCell(cellIndex, true); };
                 }
             }
             gridCellsState[cellIndex] = null;
-            console.log(`[Grid] Stream ${uniqueStreamIdentifier} died. Reconnecting in 5 seconds.`);
-            
-            reconnectTimers[cellIndex] = setTimeout(() => {
-                delete reconnectTimers[cellIndex];
-                if (!gridCellsState[cellIndex]) {
-                    startStreamInCell(cellIndex, camera.id, streamId);
-                } else {
-                    console.log(`[Grid] Reconnect cancelled for cell ${cellIndex}, it's already occupied.`);
-                }
-            }, 5000);
+            reconnectTimers[cellIndex] = setTimeout(() => { delete reconnectTimers[cellIndex]; if (!gridCellsState[cellIndex]) { startStreamInCell(cellIndex, state.camera.id, state.streamId); } }, 5000);
         }
         
         function updateRecordingState(cameraId, isRecording) {
             document.querySelectorAll('.grid-cell').forEach(cell => {
-                const cellState = gridCellsState[parseInt(cell.dataset.cellId, 10)];
-                if (cellState && cellState.camera.id === cameraId) {
+                const cellIndex = parseInt(cell.dataset.cellId, 10);
+                if (gridCellsState[cellIndex]?.camera.id === cameraId) {
                     const recordBtn = cell.querySelector('.record-btn');
                     if (recordBtn) recordBtn.classList.toggle('recording', isRecording);
                 }
@@ -532,37 +405,14 @@
                 const state = gridCellsState[cellIndex];
                 if (state && state.camera) {
                     e.preventDefault();
-                    const labels = {
-                        open_in_browser: `🌐  ${App.t('context_open_in_browser')}`,
-                        files: `🗂️  ${App.t('context_file_manager')}`,
-                        ssh: `💻  ${App.t('context_ssh')}`,
-                        settings: `⚙️  ${App.t('context_settings')}`,
-                        edit: `✏️  ${App.t('context_edit')}`,
-                        delete: `🗑️  ${App.t('context_delete')}`
-                    };
+                    const labels = { open_in_browser: `🌐  ${App.t('context_open_in_browser')}`, files: `🗂️  ${App.t('context_file_manager')}`, ssh: `💻  ${App.t('context_ssh')}`, settings: `⚙️  ${App.t('context_settings')}`, edit: `✏️  ${App.t('context_edit')}`, delete: `🗑️  ${App.t('context_delete')}` };
                     window.api.showCameraContextMenu({ cameraId: state.camera.id, labels });
                 }
             });
-            window.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && fullscreenCellIndex !== null) {
-                    toggleFullscreen(fullscreenCellIndex);
-                }
-            });
+            window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && fullscreenCellIndex !== null) { toggleFullscreen(fullscreenCellIndex); } });
             window.addEventListener('language-changed', updatePlaceholdersLanguage);
         }
 
-        return {
-            init,
-            render,
-            setInitialState,
-            getGridSize,
-            getGridState,
-            handleStreamDeath,
-            updateRecordingState,
-            restartStreamsForCamera,
-            updateCameraNameInGrid,
-            removeStreamsForCamera,
-            updatePlaceholdersLanguage
-        }
+        return { init, render, setInitialState, getGridSize, getGridState, handleStreamDeath, updateRecordingState, restartStreamsForCamera, updateCameraNameInGrid, removeStreamsForCamera, updatePlaceholdersLanguage }
     }
 })(window);

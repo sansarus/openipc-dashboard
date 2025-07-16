@@ -1,4 +1,4 @@
-// --- renderer.js ---
+// --- renderer.js (полная исправленная версия) ---
 
 (function(window) {
     'use strict';
@@ -104,7 +104,7 @@
         App.cameraList.render();
         await App.gridManager.render();
         
-        // !!! ИЗМЕНЕНИЕ: ДОБАВЛЕН СЛУШАТЕЛЬ ДЛЯ РЕАКЦИИ НА СМЕНУ ЯЗЫКА !!!
+        // --- ИЗМЕНЕНИЕ: ДОБАВЛЕН СЛУШАТЕЛЬ ДЛЯ РЕАКЦИИ НА СМЕНУ ЯЗЫКА ---
         window.addEventListener('language-changed', () => {
             console.log("Language changed, re-rendering components...");
             App.cameraList.render();
@@ -120,7 +120,7 @@
     // Запускаем приложение
     init();
 
-    // === НОВЫЙ КОД: ОБРАБОТЧИК СТАТУСА ОБНОВЛЕНИЯ ===
+    // === ОБРАБОТЧИК СТАТУСА ОБНОВЛЕНИЯ ===
     (function() {
         const updateStatusInfo = document.createElement('div');
         updateStatusInfo.style.marginLeft = '15px';
