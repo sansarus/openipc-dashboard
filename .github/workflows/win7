@@ -1,0 +1,46 @@
+
+name: Build and Publish
+
+
+
+on: workflow_dispatch
+
+permissions:
+  contents: write
+
+  
+jobs:
+  release:
+    strategy:
+      matrix:
+        os: [windows-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Check out git repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          
+      - name: Install dependencies
+        run: npm install
+        
+      - name: Create tag if not exists
+        shell: bash
+        run: |
+          if ! git rev-parse v$npm_package_version >/dev/null 2>&1; then
+            git tag v$npm_package_version
+            git push origin v$npm_package_version
+          fi
+          
+      - name: Build and publish
+     
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run dist -- --publish always
