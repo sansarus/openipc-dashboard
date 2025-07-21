@@ -141,5 +141,17 @@
   "enter_new_password_for": "Введите новый пароль для пользователя '{{username}}':",
   "password_changed_success": "Пароль успешно изменен.",
   "confirm_delete_user": "Вы уверены, что хотите удалить пользователя '{{username}}'?",
-  "username_and_password_required": "Имя пользователя и пароль обязательны."
+  "username_and_password_required": "Имя пользователя и пароль обязательны.",
+
+  "permissions_btn": "Права",
+  "permissions_for_user": "Права для пользователя '{{username}}'",
+  "permissions_saved_success": "Права успешно сохранены.",
+  "confirm_change_role": "Вы уверены, что хотите изменить роль для пользователя '{{username}}'?",
+  "role_changed_success": "Роль успешно изменена.",
+  "view_archive": "Просмотр архива",
+  "export_archive": "Экспорт из архива",
+  "edit_cameras": "Управление камерами",
+  "delete_cameras": "Удаление камер",
+  "access_settings": "Доступ к настройкам",
+  "manage_layout": "Управление сеткой"
 }

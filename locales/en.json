@@ -141,5 +141,17 @@
   "enter_new_password_for": "Enter new password for user '{{username}}':",
   "password_changed_success": "Password changed successfully.",
   "confirm_delete_user": "Are you sure you want to delete user '{{username}}'?",
-  "username_and_password_required": "Username and password are required."
+  "username_and_password_required": "Username and password are required.",
+
+  "permissions_btn": "Permissions",
+  "permissions_for_user": "Permissions for user '{{username}}'",
+  "permissions_saved_success": "Permissions saved successfully.",
+  "confirm_change_role": "Are you sure you want to change the role for user '{{username}}'?",
+  "role_changed_success": "Role changed successfully.",
+  "view_archive": "View Archive",
+  "export_archive": "Export from Archive",
+  "edit_cameras": "Manage Cameras",
+  "delete_cameras": "Delete Cameras",
+  "access_settings": "Access Settings",
+  "manage_layout": "Manage Layout"
 }

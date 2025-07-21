@@ -38,7 +38,7 @@
         const addDiscoveredBtn = document.getElementById('add-discovered-btn');
         const rediscoverBtn = document.getElementById('rediscover-btn');
         
-        // VVV НОВОЕ: Элементы для модального окна управления пользователями VVV
+        // VVV Элементы для модального окна управления пользователями VVV
         const userManagementModal = document.getElementById('user-management-modal');
         const userManagementCloseBtn = document.getElementById('user-management-close-btn');
         const userListEl = document.getElementById('user-list');
@@ -49,12 +49,30 @@
         const saveUserBtn = document.getElementById('save-user-btn');
         const cancelUserBtn = document.getElementById('cancel-user-btn');
         
+        // VVV НОВОЕ: Элементы для модального окна управления правами VVV
+        const permissionsModal = document.getElementById('permissions-modal');
+        const permissionsModalCloseBtn = document.getElementById('permissions-modal-close-btn');
+        const permissionsModalTitle = document.getElementById('permissions-modal-title');
+        const permissionsListEl = document.getElementById('permissions-list');
+        const savePermissionsBtn = document.getElementById('save-permissions-btn');
+        const cancelPermissionsBtn = document.getElementById('cancel-permissions-btn');
+        
         let toastTimeout;
         let editingCameraId = null;
         let settingsCameraId = null;
         let rangeSyncFunctions = {};
         let selectedDiscoveredDevice = null;
         let isDiscovering = false;
+        let editingPermissionsForUser = null;
+
+        const availablePermissions = [
+            { key: 'view_archive', labelKey: 'view_archive', defaultLabel: 'Просмотр архива' },
+            { key: 'export_archive', labelKey: 'export_archive', defaultLabel: 'Экспорт из архива' },
+            { key: 'edit_cameras', labelKey: 'edit_cameras', defaultLabel: 'Управление камерами' },
+            { key: 'delete_cameras', labelKey: 'delete_cameras', defaultLabel: 'Удаление камер' },
+            { key: 'access_settings', labelKey: 'access_settings', defaultLabel: 'Доступ к настройкам' },
+            { key: 'manage_layout', labelKey: 'manage_layout', defaultLabel: 'Управление сеткой' },
+        ];
 
         const openModal = (modalElement) => modalElement.classList.remove('hidden');
         const closeModal = (modalElement) => {
@@ -129,7 +147,6 @@
             allTabs.forEach(btn => {
                 const tabName = btn.dataset.tab;
                 const isGeneralTab = tabName === 'tab-general';
-                // --- ИЗМЕНЕНИЕ: Логика для вкладки пользователей удалена отсюда ---
                 const isCameraTab = !isGeneralTab;
 
                 if (isGeneralSettings) {
@@ -192,7 +209,6 @@
             }
         }
         
-        // VVV НОВАЯ ФУНКЦИЯ VVV
         async function openUserManagementModal() {
             openModal(userManagementModal);
             await renderUserList();
@@ -349,18 +365,26 @@
             if (result.success) {
                 result.users.forEach(user => {
                     const li = document.createElement('li');
+                    const isCurrentUser = user.username === App.stateManager.state.currentUser?.username;
+
                     li.style.cssText = "display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee;";
                     li.innerHTML = `
                         <div>
                             <strong>${user.username}</strong>
                             <small style="color: #666; margin-left: 10px;">(${App.t('role_' + user.role)})</small>
                         </div>
-                        <div>
-                            <button class="change-pass-btn" style="margin-right: 10px;">${App.t('change_password')}</button>
-                            <button class="delete-user-btn" style="color: var(--danger-color);">${App.t('context_delete')}</button>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            ${user.role === 'operator' ? `<button class="permissions-btn" data-username="${user.username}">${App.t('permissions_btn', 'Права')}</button>` : ''}
+                            <button class="change-pass-btn">${App.t('change_password')}</button>
+                            <button class="delete-user-btn" style="color: var(--danger-color);" ${isCurrentUser ? 'disabled' : ''}>${App.t('context_delete')}</button>
                         </div>
                     `;
                     
+                    const permissionsBtn = li.querySelector('.permissions-btn');
+                    if (permissionsBtn) {
+                        permissionsBtn.addEventListener('click', () => openPermissionsModal(user));
+                    }
+
                     li.querySelector('.change-pass-btn').addEventListener('click', async () => {
                         const newPassword = prompt(App.t('enter_new_password_for', { username: user.username }));
                         if (newPassword && newPassword.trim()) {
@@ -418,6 +442,50 @@
             }
         }
         
+        // VVV НОВЫЕ ФУНКЦИИ ДЛЯ МОДАЛЬНОГО ОКНА ПРАВ VVV
+        function openPermissionsModal(user) {
+            editingPermissionsForUser = user;
+            permissionsModalTitle.textContent = App.t('permissions_for_user', { username: user.username });
+            permissionsListEl.innerHTML = '';
+
+            availablePermissions.forEach(perm => {
+                const isChecked = user.permissions && user.permissions[perm.key];
+                const item = document.createElement('div');
+                item.className = 'form-check-inline';
+                item.innerHTML = `
+                    <input type="checkbox" id="perm-${perm.key}" data-key="${perm.key}" class="form-check-input" ${isChecked ? 'checked' : ''}>
+                    <label for="perm-${perm.key}">${App.t(perm.labelKey, perm.defaultLabel)}</label>
+                `;
+                permissionsListEl.appendChild(item);
+            });
+
+            openModal(permissionsModal);
+        }
+
+        async function savePermissions() {
+            if (!editingPermissionsForUser) return;
+
+            const newPermissions = {};
+            permissionsListEl.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                if (checkbox.checked) {
+                    newPermissions[checkbox.dataset.key] = true;
+                }
+            });
+
+            const result = await window.api.updateUserPermissions({
+                username: editingPermissionsForUser.username,
+                permissions: newPermissions
+            });
+
+            if (result.success) {
+                showToast(App.t('permissions_saved_success', 'Права успешно сохранены.'));
+                closeModal(permissionsModal);
+                await renderUserList(); // Обновляем список, чтобы подтянуть новые данные
+            } else {
+                alert(`${App.t('error')}: ${result.error}`);
+            }
+        }
+        
         function init() {
             window.api.onOnvifDeviceFound((device) => {
                 if (discoverList.children.length > 0 && discoverList.children[0].textContent.includes(App.i18n.t('searching_for_cameras'))) {
@@ -447,7 +515,6 @@
             const addCameraSidebarBtn = document.getElementById('add-camera-sidebar-btn');
             const addGroupBtn = document.getElementById('add-group-btn');
             const generalSettingsBtn = document.getElementById('general-settings-btn');
-            // VVV НОВОЕ VVV
             const userManagementBtn = document.getElementById('user-management-btn');
             
             addCameraSidebarBtn.addEventListener('click', () => openAddModal());
@@ -474,7 +541,7 @@
             discoverModal.addEventListener('click', (e) => { if (e.target === discoverModal) closeModal(discoverModal); });
             addDiscoveredBtn.addEventListener('click', addDiscoveredCamera);
 
-            // VVV НОВОЕ: Обработчики для модального окна управления пользователями VVV
+            // VVV Обработчики для модального окна управления пользователями VVV
             userManagementBtn.addEventListener('click', openUserManagementModal);
             userManagementCloseBtn.addEventListener('click', () => closeModal(userManagementModal));
             userManagementModal.addEventListener('click', (e) => { if (e.target === userManagementModal) closeModal(userManagementModal); });
@@ -484,6 +551,12 @@
             addUserModal.addEventListener('click', (e) => { if (e.target === addUserModal) closeModal(addUserModal); });
             saveUserBtn.addEventListener('click', saveNewUser);
             cancelUserBtn.addEventListener('click', () => closeModal(addUserModal));
+
+            // VVV НОВОЕ: Обработчики для модального окна прав VVV
+            savePermissionsBtn.addEventListener('click', savePermissions);
+            cancelPermissionsBtn.addEventListener('click', () => closeModal(permissionsModal));
+            permissionsModalCloseBtn.addEventListener('click', () => closeModal(permissionsModal));
+            permissionsModal.addEventListener('click', (e) => { if (e.target === permissionsModal) closeModal(permissionsModal); });
 
             languageSelect.addEventListener('change', async (e) => {
                 const newLang = e.target.value;
@@ -513,7 +586,6 @@
                 } 
             });
             
-            // --- ИЗМЕНЕНИЕ: Упрощенная логика для вкладок настроек ---
             settingsModal.querySelectorAll('.tab-button').forEach(button => { 
                 button.addEventListener('click', () => { 
                     settingsModal.querySelectorAll('.tab-button, .tab-content').forEach(el => el.classList.remove('active')); 
@@ -535,7 +607,8 @@
                     closeModal(addGroupModal);
                     closeModal(discoverModal);
                     closeModal(addUserModal);
-                    closeModal(userManagementModal); // VVV НОВОЕ VVV
+                    closeModal(permissionsModal);
+                    closeModal(userManagementModal);
                 }
             });
         }

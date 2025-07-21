@@ -14,7 +14,7 @@ const ffmpeg = require('@ffmpeg-installer/ffmpeg');
 const keytar = require('keytar');
 const { autoUpdater } = require('electron-updater');
 const onvif = require('onvif');
-const crypto = require('crypto'); // VVV НОВОЕ VVV: Модуль для хэширования паролей
+const crypto = require('crypto'); // Модуль для хэширования паролей
 
 if (process.platform === 'linux' || process.env.ELECTRON_FORCE_NO_SANDBOX) {
     app.commandLine.appendSwitch('--no-sandbox');
@@ -42,13 +42,13 @@ console.log(`[Config] Data path is: ${dataPathRoot}`);
 
 const configPath = path.join(dataPathRoot, 'config.json');
 const appSettingsPath = path.join(dataPathRoot, 'app-settings.json');
-const usersPath = path.join(dataPathRoot, 'users.json'); // VVV НОВОЕ VVV
+const usersPath = path.join(dataPathRoot, 'users.json');
 const oldCamerasPath = path.join(dataPathRoot, 'cameras.json');
 let sshWindows = {};
 let fileManagerConnections = {};
 let appSettingsCache = null;
 
-// VVV БЛОК УПРАВЛЕНИЯ ПОЛЬЗОВАТЕЛЯМИ VVV
+// VVV БЛОК УПРАВЛЕНИЯ ПОЛЬЗОВАТЕЛЯМИ (С ИЗМЕНЕНИЯМИ ДЛЯ ГИБКИХ ПРАВ) VVV
 function hashPassword(password) {
     const salt = crypto.randomBytes(16).toString('hex');
     const hash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
@@ -70,7 +70,7 @@ async function initializeUsers() {
             username: 'admin',
             hashedPassword: hash,
             salt: salt,
-            role: 'admin'
+            role: 'admin' // У админа нет объекта permissions, ему можно всё
         }];
         await fsPromises.writeFile(usersPath, JSON.stringify(defaultUser, null, 2));
     }
@@ -78,6 +78,7 @@ async function initializeUsers() {
 // ^^^ КОНЕЦ БЛОКА УПРАВЛЕНИЯ ПОЛЬЗОВАТЕЛЯМИ ^^^
 
 function getHwAccelOptions(codec, preference, streamId) {
+    // ... (код без изменений)
     const isSD = streamId === 1;
 
     if (preference === 'nvidia') {
@@ -141,6 +142,7 @@ async function getAppSettings() {
 }
 
 function createWindow() {
+    // ... (код без изменений)
     mainWindow = new BrowserWindow({
         width: 1400,
         height: 900,
@@ -171,6 +173,7 @@ function createWindow() {
 }
 
 function createFileManagerWindow(camera) {
+    // ... (код без изменений)
     const fileManagerWindow = new BrowserWindow({
         width: 1000,
         height: 700,
@@ -225,7 +228,11 @@ ipcMain.handle('login', async (event, { username, password }) => {
 
         if (user && verifyPassword(password, user.hashedPassword, user.salt)) {
             // Возвращаем пользователя без хэша и соли! Безопасность.
-            return { success: true, user: { username: user.username, role: user.role } };
+            const userPayload = { username: user.username, role: user.role };
+            if (user.role === 'operator') {
+                userPayload.permissions = user.permissions || {}; // Отправляем права оператора
+            }
+            return { success: true, user: userPayload };
         }
         return { success: false, error: 'Invalid username or password' };
     } catch (e) {
@@ -234,13 +241,13 @@ ipcMain.handle('login', async (event, { username, password }) => {
     }
 });
 
-// VVV НОВЫЕ ОБРАБОТЧИКИ ДЛЯ УПРАВЛЕНИЯ ПОЛЬЗОВАТЕЛЯМИ VVV
+// VVV ОБНОВЛЕННЫЕ И НОВЫЕ ОБРАБОТЧИКИ УПРАВЛЕНИЯ ПОЛЬЗОВАТЕЛЯМИ VVV
 ipcMain.handle('get-users', async () => {
   try {
     const data = await fsPromises.readFile(usersPath, 'utf-8');
     const users = JSON.parse(data);
-    // ВАЖНО: Никогда не отправляем хэши и соли на клиент!
-    return { success: true, users: users.map(u => ({ username: u.username, role: u.role })) };
+    // Отправляем полные данные, включая права, т.к. их видит только админ
+    return { success: true, users: users.map(u => ({ username: u.username, role: u.role, permissions: u.permissions || {} })) };
   } catch (e) {
     return { success: false, error: e.message };
   }
@@ -254,7 +261,12 @@ ipcMain.handle('add-user', async (event, { username, password, role }) => {
       return { success: false, error: 'User with this name already exists.' };
     }
     const { salt, hash } = hashPassword(password);
-    users.push({ username, salt, hashedPassword: hash, role });
+    const newUser = { username, salt, hashedPassword: hash, role };
+    // Если создаем оператора, добавляем пустой объект прав
+    if (role === 'operator') {
+        newUser.permissions = {};
+    }
+    users.push(newUser);
     await fsPromises.writeFile(usersPath, JSON.stringify(users, null, 2));
     return { success: true };
   } catch (e) {
@@ -280,6 +292,59 @@ ipcMain.handle('update-user-password', async (event, { username, password }) => 
     }
 });
 
+ipcMain.handle('update-user-role', async (event, { username, role }) => {
+    try {
+        const data = await fsPromises.readFile(usersPath, 'utf-8');
+        let users = JSON.parse(data);
+        const userIndex = users.findIndex(u => u.username === username);
+
+        if (userIndex === -1) {
+            return { success: false, error: 'User not found.' };
+        }
+
+        // Защита от понижения роли последнего администратора
+        if (users[userIndex].role === 'admin' && role !== 'admin') {
+            const admins = users.filter(u => u.role === 'admin');
+            if (admins.length <= 1) {
+                return { success: false, error: 'Cannot change the role of the last administrator.' };
+            }
+        }
+
+        users[userIndex].role = role;
+        // Если роль меняется на оператора, добавляем пустые права, если их не было
+        if (role === 'operator' && !users[userIndex].permissions) {
+            users[userIndex].permissions = {};
+        }
+        // Если роль меняется на админа, удаляем объект прав (админу можно все по умолчанию)
+        if (role === 'admin') {
+            delete users[userIndex].permissions;
+        }
+
+        await fsPromises.writeFile(usersPath, JSON.stringify(users, null, 2));
+        return { success: true };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+});
+
+ipcMain.handle('update-user-permissions', async (event, { username, permissions }) => {
+    try {
+        const data = await fsPromises.readFile(usersPath, 'utf-8');
+        let users = JSON.parse(data);
+        const userIndex = users.findIndex(u => u.username === username);
+
+        if (userIndex === -1 || users[userIndex].role !== 'operator') {
+            return { success: false, error: 'User not found or is not an operator.' };
+        }
+
+        users[userIndex].permissions = permissions;
+        await fsPromises.writeFile(usersPath, JSON.stringify(users, null, 2));
+        return { success: true };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+});
+
 ipcMain.handle('delete-user', async (event, { username }) => {
   try {
     const data = await fsPromises.readFile(usersPath, 'utf-8');
@@ -298,9 +363,10 @@ ipcMain.handle('delete-user', async (event, { username }) => {
     return { success: false, error: e.message };
   }
 });
-// ^^^ КОНЕЦ НОВЫХ ОБРАБОТЧИКОВ ^^^
+// ^^^ КОНЕЦ ОБНОВЛЕННЫХ ОБРАБОТЧИКОВ ^^^
 
 ipcMain.handle('load-app-settings', getAppSettings);
+// ... (остальной код файла без изменений до конца) ...
 ipcMain.handle('save-app-settings', async (event, settings) => {
     try {
         appSettingsCache = settings;
@@ -1060,8 +1126,8 @@ autoUpdater.on('update-downloaded', (info) => {
 });
 
 // --- ЖИЗНЕННЫЙ ЦИКЛ ПРИЛОЖЕНИЯ ---
-app.whenReady().then(async () => { // VVV ИЗМЕНЕНИЕ: делаем async VVV
-    await initializeUsers(); // VVV ИЗМЕНЕНИЕ: вызываем здесь VVV
+app.whenReady().then(async () => {
+    await initializeUsers();
 
     protocol.registerFileProtocol('video-archive', async (request, callback) => {
         const settings = await getAppSettings();

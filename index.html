@@ -196,6 +196,28 @@
         body.role-admin .admin-only {
             display: flex !important;
         }
+        
+        /* VVV СТИЛИ ДЛЯ ГИБКИХ ПРАВ VVV */
+        /* По умолчанию скрываем элементы, требующие прав, для всех операторов */
+        body.role-operator .requires-permission {
+            display: none !important;
+        }
+        /* А для админа всегда показываем */
+        body.role-admin .requires-permission {
+            display: flex !important;
+        }
+        /* Теперь выборочно показываем для операторов с нужными правами */
+        body.can-edit-cameras #discover-btn,
+        body.can-edit-cameras #add-group-btn,
+        body.can-edit-cameras #add-camera-sidebar-btn {
+            display: flex !important;
+        }
+        body.can-manage-layout #layout-controls,
+        body.can-manage-layout #presentation-mode-btn {
+            display: flex !important;
+        }
+        /* ^^^ КОНЕЦ СТИЛЕЙ ДЛЯ ГИБКИХ ПРАВ ^^^ */
+        
         body.role-operator .camera-item,
         body.role-operator .grid-cell.active {
             cursor: default;
@@ -206,16 +228,23 @@
             display: none !important;
         }
         
-        #user-list .delete-user-btn,
-        #user-list .change-pass-btn {
-            background: none;
-            border: none;
+        #user-list button {
+             background: none;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 4px 8px;
             cursor: pointer;
-            text-decoration: underline;
             font-size: 13px;
         }
-        #user-list .delete-user-btn { color: #dc3545; }
-        #user-list .change-pass-btn { color: #007bff; }
+        #user-list button:hover {
+            background-color: #f0f0f0;
+        }
+        #user-list .delete-user-btn { color: #dc3545; border-color: #dc3545; }
+        #user-list .delete-user-btn:hover { background-color: #dc3545; color: white; }
+        #user-list .change-pass-btn { color: #007bff; border-color: #007bff; }
+        #user-list .change-pass-btn:hover { background-color: #007bff; color: white; }
+        #user-list button:disabled { opacity: 0.5; cursor: not-allowed; }
+
     </style>
 </head>
 <body>
@@ -252,7 +281,7 @@
             <div class="sidebar">
                 <div class="sidebar-header">
                     <div class="header-buttons">
-                        <span class="admin-only" style="display: contents;">
+                        <span class="requires-permission" style="display: contents;">
                             <button id="discover-btn" class="icon-button" data-i18n-tooltip="discover_cameras_tooltip"><i class="material-icons">travel_explore</i></button>
                             <button id="add-group-btn" class="icon-button" data-i18n-tooltip="create_group_tooltip"><i class="material-icons">create_new_folder</i></button>
                             <button id="add-camera-sidebar-btn" class="icon-button" data-i18n-tooltip="add_camera_tooltip"><i class="material-icons">add_circle_outline</i></button>
@@ -272,9 +301,9 @@
                 <button id="open-recordings-btn" class="icon-button admin-only" data-i18n-tooltip="open_recordings_tooltip"><i class="material-icons" style="font-size: 20px;">folder</i></button>
                 <div class="status-info" id="status-info"></div>
             </div>
-            <div class="toolbar-group admin-only" id="layout-controls"></div>
+            <div class="toolbar-group requires-permission" id="layout-controls"></div>
             <div class="toolbar-group">
-                <button id="presentation-mode-btn" class="icon-button admin-only" data-i18n-tooltip="presentation_mode_tooltip"><i class="material-icons" style="font-size: 20px;">tv</i></button>
+                <button id="presentation-mode-btn" class="icon-button requires-permission" data-i18n-tooltip="presentation_mode_tooltip"><i class="material-icons" style="font-size: 20px;">tv</i></button>
             </div>
         </div>
     </div>
@@ -649,6 +678,22 @@
                     <button id="save-user-btn" data-i18n-key="save"></button>
                     <button id="cancel-user-btn" style="background-color: #6c757d;" data-i18n-key="cancel"></button>
                 </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="permissions-modal" class="modal-backdrop hidden">
+        <div class="modal-content" style="width: 500px;">
+            <span id="permissions-modal-close-btn" class="modal-close-btn">×</span>
+            <h2 id="permissions-modal-title"></h2>
+            <div class="modal-body" style="padding-top: 15px;">
+                <div id="permissions-list" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <!-- Checkboxes will be inserted here dynamically -->
+                </div>
+            </div>
+            <div class="modal-footer" style="justify-content: flex-end;">
+                <button id="save-permissions-btn" data-i18n-key="save"></button>
+                <button id="cancel-permissions-btn" style="background-color: #6c757d;" data-i18n-key="cancel"></button>
             </div>
         </div>
     </div>

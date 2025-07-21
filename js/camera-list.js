@@ -108,8 +108,9 @@
             openRecordingsBtn.addEventListener('click', () => window.api.openRecordingsFolder());
             
             cameraListContainer.addEventListener('contextmenu', (e) => {
-                // VVV ИЗМЕНЕНИЕ: Блокируем контекстное меню для всех, кроме админа VVV
-                if (App.stateManager.state.currentUser?.role !== 'admin') {
+                const currentUser = App.stateManager.state.currentUser;
+                // VVV ИЗМЕНЕНИЕ: Блокируем контекстное меню для операторов без прав VVV
+                if (currentUser?.role !== 'admin' && !(currentUser.permissions?.edit_cameras || currentUser.permissions?.delete_cameras || currentUser.permissions?.access_settings || currentUser.permissions?.view_archive)) {
                     e.preventDefault();
                     return;
                 }
@@ -119,16 +120,27 @@
                 if (cameraItem) {
                     e.preventDefault();
                     const cameraId = parseInt(cameraItem.dataset.cameraId, 10);
-                    const labels = {
-                        open_in_browser: `🌐  ${App.i18n.t('context_open_in_browser')}`,
-                        files: `🗂️  ${App.i18n.t('context_file_manager')}`,
-                        ssh: `💻  ${App.i18n.t('context_ssh')}`,
-                        archive: `🗄️  ${App.i18n.t('archive_title')}`,
-                        settings: `⚙️  ${App.i18n.t('context_settings')}`,
-                        edit: `✏️  ${App.i18n.t('context_edit')}`,
-                        delete: `🗑️  ${App.i18n.t('context_delete')}`
-                    };
-                    window.api.showCameraContextMenu({ cameraId, labels });
+                    // Динамически строим меню на основе прав
+                    const menuItems = {};
+                    
+                    menuItems.open_in_browser = `🌐  ${App.i18n.t('context_open_in_browser')}`;
+                    menuItems.files = `🗂️  ${App.i18n.t('context_file_manager')}`;
+                    menuItems.ssh = `💻  ${App.i18n.t('context_ssh')}`;
+
+                    if (currentUser.role === 'admin' || currentUser.permissions?.view_archive) {
+                        menuItems.archive = `🗄️  ${App.i18n.t('archive_title')}`;
+                    }
+                    if (currentUser.role === 'admin' || currentUser.permissions?.access_settings) {
+                        menuItems.settings = `⚙️  ${App.i18n.t('context_settings')}`;
+                    }
+                    if (currentUser.role === 'admin' || currentUser.permissions?.edit_cameras) {
+                        menuItems.edit = `✏️  ${App.i18n.t('context_edit')}`;
+                    }
+                    if (currentUser.role === 'admin' || currentUser.permissions?.delete_cameras) {
+                        menuItems.delete = `🗑️  ${App.i18n.t('context_delete')}`;
+                    }
+
+                    window.api.showCameraContextMenu({ cameraId, labels: menuItems });
                 }
             });
 

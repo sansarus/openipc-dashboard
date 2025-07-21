@@ -18,6 +18,8 @@ contextBridge.exposeInMainWorld('api', {
   addUser: (userData) => ipcRenderer.invoke('add-user', userData),
   updateUserPassword: (userData) => ipcRenderer.invoke('update-user-password', userData),
   deleteUser: (userData) => ipcRenderer.invoke('delete-user', { username: userData.username }),
+  updateUserRole: (userData) => ipcRenderer.invoke('update-user-role', userData),
+  updateUserPermissions: (userData) => ipcRenderer.invoke('update-user-permissions', userData),
   // ^^^ КОНЕЦ НОВЫХ ФУНКЦИЙ ^^^
 
   // Существующие функции

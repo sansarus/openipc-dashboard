@@ -203,9 +203,19 @@
             }, 20);
 
             const user = App.stateManager.state.currentUser;
-            document.body.classList.remove('role-admin', 'role-operator');
+            // Сначала удаляем все классы ролей и прав
+            document.body.className = document.body.className.replace(/role-\w+|can-\w+/g, '').trim();
+
             if (user) {
                 document.body.classList.add(`role-${user.role}`);
+                // Если это оператор, добавляем классы для его прав
+                if (user.role === 'operator' && user.permissions) {
+                    for (const permission in user.permissions) {
+                        if (user.permissions[permission]) {
+                            document.body.classList.add(`can-${permission.replace(/_/g, '-')}`);
+                        }
+                    }
+                }
             }
         });
         
