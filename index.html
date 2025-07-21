@@ -15,200 +15,127 @@
         * { box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; background-color: var(--bg-darker); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        .header { height: var(--header-height); background-color: var(--bg-dark); display: flex; align-items: center; padding: 0 15px; border-bottom: 1px solid var(--border-color); flex-shrink: 0; }
+        .header { 
+            height: var(--header-height); background-color: var(--bg-dark); display: flex; align-items: center; 
+            border-bottom: 1px solid var(--border-color); flex-shrink: 0;
+            -webkit-app-region: drag; 
+            padding: 0 0 0 15px;
+            justify-content: space-between;
+        }
+        .header .logo, .header .tabs .tab {
+            -webkit-app-region: no-drag;
+        }
+        .window-controls {
+            display: flex;
+            height: 100%;
+            margin-left: auto;
+        }
+        .window-control-btn {
+            -webkit-app-region: no-drag;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            padding: 0 15px;
+            cursor: pointer;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .window-control-btn i { font-size: 18px; }
+        .window-control-btn:hover {
+            background-color: var(--bg-medium);
+            color: var(--text-main);
+        }
+        .window-control-btn.close-btn:hover {
+            background-color: var(--danger-color);
+            color: white;
+        }
+
         .header .logo { font-size: 1.2em; font-weight: bold; color: var(--text-main); }
         .header .tabs { margin-left: 30px; height: 100%; display: flex; }
         .header .tab { padding: 0 15px; background: none; border: none; border-bottom: 3px solid transparent; color: var(--text-secondary); cursor: pointer; height: 100%; display: flex; align-items: center; }
         .header .tab.active { color: var(--text-main); border-bottom-color: var(--accent-color); }
-        
         .main-container { display: flex; flex-grow: 1; overflow: hidden; }
-        
-        .view-container { 
-            flex-grow: 1; 
-            padding: 10px;
-            position: relative;
-        }
-
-        #grid-container { 
-            width: 100%; 
-            height: 100%;
-            position: relative;
-        }
-        
-        #grid-container.fullscreen-mode .grid-cell:not(.fullscreen) {
-            display: none !important;
-        }
-        
-        .grid-cell { 
-            position: absolute;
-            background-color: var(--bg-dark); 
-            border-radius: 4px; 
-            display: flex; 
-            flex-direction: column; 
-            justify-content: center; 
-            align-items: center; 
-            color: var(--text-secondary); 
-            border: 1px solid var(--border-color); 
-            cursor: pointer; 
-            text-align: center; 
-            transition: background-color 0.2s, border-color 0.2s, transform 0.1s ease-in-out;
-            padding: 5px;
-            box-sizing: border-box;
-            object-fit: contain;
-            overflow: hidden;
-            z-index: 1;
-        }
-
-        .grid-cell:hover {
-            z-index: 99;
-            transform: scale(1.02);
-        }
-        
-        .grid-cell.fullscreen { 
-            position: fixed !important; 
-            top: 0 !important; 
-            left: 0 !important; 
-            width: 100vw !important; 
-            height: 100vh !important; 
-            z-index: 1001;
-            border: none; 
-            border-radius: 0; 
-            padding: 0;
-            background-color: #000; 
-        }
-        
-        .grid-cell.fullscreen .cell-controls,
-        .grid-cell.fullscreen .cell-name,
-        .grid-cell.fullscreen .cell-stats {
-            opacity: 1;
-        }
-        
-        .grid-cell.fullscreen .cell-controls {
-            position: fixed;
-            top: 10px;
-            right: 15px;
-        }
-
+        .view-container { flex-grow: 1; padding: 10px; position: relative; }
+        #grid-container { width: 100%; height: 100%; position: relative; }
+        #grid-container.fullscreen-mode .grid-cell:not(.fullscreen) { display: none !important; }
+        .grid-cell { position: absolute; background-color: var(--bg-dark); border-radius: 4px; display: flex; flex-direction: column; justify-content: center; align-items: center; color: var(--text-secondary); border: 1px solid var(--border-color); cursor: pointer; text-align: center; transition: background-color 0.2s, border-color 0.2s, transform 0.1s ease-in-out; padding: 5px; box-sizing: border-box; object-fit: contain; overflow: hidden; z-index: 1; }
+        .grid-cell:hover { z-index: 99; transform: scale(1.02); }
+        .grid-cell.fullscreen { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 1001; border: none; border-radius: 0; padding: 0; background-color: #000; }
+        .grid-cell.fullscreen .cell-controls, .grid-cell.fullscreen .cell-name, .grid-cell.fullscreen .cell-stats { opacity: 1; }
+        .grid-cell.fullscreen .cell-controls { position: fixed; top: 10px; right: 15px; }
         .grid-cell.drag-over { border: 2px dashed var(--accent-color); background-color: var(--bg-light); }
-        
-        .grid-cell canvas {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            border-radius: 4px;
-            pointer-events: none;
-        }
-
+        .grid-cell canvas { width: 100%; height: 100%; object-fit: contain; border-radius: 4px; pointer-events: none; }
         .grid-cell.active { border: 2px solid var(--accent-color); }
-        
-        .cell-controls {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background-color: rgba(0,0,0,0.6);
-            border-radius: 4px;
-            z-index: 10;
-            display: flex;
-            gap: 5px;
-            pointer-events: all;
-            padding: 2px 4px;
-            opacity: 0;
-            transition: opacity 0.2s ease-in-out;
-        }
-        
-        .grid-cell:hover .cell-controls,
-        .grid-cell:hover .cell-name,
-        .grid-cell:hover .cell-stats {
-            opacity: 1;
-        }
-
+        .cell-controls { position: absolute; top: 5px; right: 5px; background-color: rgba(0,0,0,0.6); border-radius: 4px; z-index: 10; display: flex; gap: 5px; pointer-events: all; padding: 2px 4px; opacity: 0; transition: opacity 0.2s ease-in-out; }
+        .grid-cell:hover .cell-controls, .grid-cell:hover .cell-name, .grid-cell:hover .cell-stats { opacity: 1; }
         .cell-controls button { background: none; border: none; color: white; cursor: pointer; font-size: 16px; padding: 0; display: flex; align-items: center; }
         .cell-controls button.fullscreen-btn { font-size: 20px; }
         .cell-controls button.record-btn.recording { color: var(--danger-color); animation: pulse-rec 1.5s infinite; }
         @keyframes pulse-rec { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
-        
-        .cell-name {
-            position: absolute;
-            bottom: 5px;
-            right: 10px;
-            background-color: rgba(0,0,0,0.6);
-            color: white;
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-size: 13px;
-            z-index: 10;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.2s ease-in-out;
-        }
-
-        .cell-stats {
-            position: absolute;
-            bottom: 5px;
-            left: 10px;
-            background-color: rgba(0,0,0,0.6);
-            color: #fff;
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-size: 13px;
-            font-family: monospace;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.2s ease-in-out;
-        }
-        
+        .cell-name { position: absolute; bottom: 5px; right: 10px; background-color: rgba(0,0,0,0.6); color: white; padding: 3px 8px; border-radius: 4px; font-size: 13px; z-index: 10; pointer-events: none; opacity: 0; transition: opacity 0.2s ease-in-out; }
+        .cell-stats { position: absolute; bottom: 5px; left: 10px; background-color: rgba(0,0,0,0.6); color: #fff; padding: 3px 8px; border-radius: 4px; font-size: 13px; font-family: monospace; pointer-events: none; opacity: 0; transition: opacity 0.2s ease-in-out; }
         .grid-cell .placeholder-icon { font-size: 48px; margin-bottom: 10px; }
-
-        .sidebar { width: var(--sidebar-width); background-color: var(--bg-dark); border-left: 1px solid var(--border-color); display: flex; flex-direction: column; }
-        .sidebar-header { padding: 10px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
-        .sidebar-header h3 { margin: 0; font-size: 1em; }
-        .sidebar-header .header-buttons { display: flex; gap: 5px; }
+        
+        .sidebar { width: var(--sidebar-width); background-color: var(--bg-dark); border-left: 1px solid var(--border-color); display: flex; flex-direction: column; flex-shrink: 0; }
+        
+        .sidebar-header {
+            padding: 10px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+        .sidebar-header h3 {
+            margin: 0;
+            font-size: 1em;
+        }
+        
+        .sidebar-header .header-buttons {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
         .sidebar-header .icon-button { background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 4px; border-radius: 50%; display: flex; align-items: center; }
         .sidebar-header .icon-button:hover { color: var(--text-main); background-color: var(--bg-light); }
-        
+
         #camera-list-container { overflow-y: auto; flex-grow: 1; }
         .group-container { margin-bottom: 10px; padding: 0 5px; }
         .group-header { display: flex; align-items: center; cursor: pointer; padding: 5px; border-radius: 4px; }
         .group-header:hover { background-color: var(--bg-light); }
         .group-header .toggle-icon { font-size: 20px; transition: transform 0.2s; user-select: none; }
         .group-header .toggle-icon.collapsed { transform: rotate(-90deg); }
-        .group-header .group-name { font-weight: bold; margin-left: 5px; }
+        .group-header .group-name { font-weight: bold; margin-left: 5px; white-space: nowrap; }
+        
         .group-cameras { padding-left: 10px; overflow: hidden; max-height: 1000px; transition: max-height 0.3s ease-in-out, padding 0.3s ease-in-out; }
         .group-cameras.collapsed { max-height: 0; padding-top: 0; padding-bottom: 0; }
         .camera-item { padding: 8px; border-radius: 4px; margin-bottom: 5px; cursor: grab; display: flex; align-items: center; gap: 8px; position: relative; }
         .camera-item:hover { background-color: var(--bg-light); }
+        .camera-item span { white-space: nowrap; }
+        
         .status-icon { width: 10px; height: 10px; border-radius: 50%; background-color: #6c757d; flex-shrink: 0; }
         .status-icon.online { background-color: #28a745; }
-        .camera-item .rec-indicator {
-            width: 8px; height: 8px; border-radius: 50%; background-color: var(--danger-color);
-            position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
-            display: none; animation: pulse-rec 1.5s infinite;
-        }
+        .camera-item .rec-indicator { width: 8px; height: 8px; border-radius: 50%; background-color: var(--danger-color); position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: none; animation: pulse-rec 1.5s infinite; }
         .camera-item.recording .rec-indicator { display: block; }
-        
+
         .bottom-toolbar { height: var(--toolbar-height); background-color: var(--bg-dark); border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 15px; flex-shrink: 0; }
         .toolbar-group { display: flex; align-items: center; gap: 5px; }
         .toolbar-group .layout-btn, .toolbar-group .icon-button { background-color: var(--bg-light); border: 1px solid var(--border-color); color: var(--text-secondary); padding: 5px; border-radius: 4px; cursor: pointer; min-width: 30px; text-align: center; display: flex; align-items: center; justify-content: center; }
         .toolbar-group .layout-btn:hover, .toolbar-group .layout-btn.active, .toolbar-group .icon-button:hover { background-color: var(--accent-color); color: white; border-color: var(--accent-color); }
         .status-info { font-size: 12px; color: var(--text-secondary); margin-left: 10px; }
-
+        
         .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
         .modal-content { position: relative; background: white; padding: 20px 30px 30px 30px; border-radius: 8px; width: 500px; color: #333; }
         .modal-content.large { width: 700px; max-height: 90vh; display: flex; flex-direction: column; }
         .modal-body { overflow-y: auto; flex-grow: 1; padding-right: 10px;}
         .modal-footer { margin-top: auto; padding-top: 20px; border-top: 1px solid #eee; display: flex; gap: 10px; }
-        .modal-close-btn { 
-            position: absolute; 
-            top: 10px; 
-            right: 15px; 
-            font-size: 28px; 
-            font-weight: bold; 
-            color: #aaa; 
-            cursor: pointer; 
-            line-height: 1; 
-            user-select: none; 
-            z-index: 10;
-        }
+        .modal-close-btn { position: absolute; top: 10px; right: 15px; font-size: 28px; font-weight: bold; color: #aaa; cursor: pointer; line-height: 1; user-select: none; z-index: 10; }
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; align-items: center; padding-top: 15px; }
         .form-grid.simple { grid-template-columns: 120px 1fr; }
         .form-grid.with-button .form-input-wrapper { display: flex; gap: 5px; align-items: center; }
@@ -228,153 +155,152 @@
         .toast-notification.show { opacity: 1; visibility: visible; }
         .toast-notification.error { background-color: var(--danger-color); }
         .hidden { display: none !important; }
+        .form-check-inline { display: inline-flex; align-items: center; gap: 5px; margin-right: 15px; }
+        .form-check-input { width: auto !important; }
 
-        .modal-content.archive {
-            width: 90vw;
-            max-width: 1200px;
-            height: 90vh;
-            padding: 0;
-            display: flex;
-            overflow: hidden;
+        #archive-view { position: fixed; top: var(--header-height); left: 0; width: 100%; height: calc(100vh - var(--header-height)); background-color: var(--bg-darker); z-index: 1000; display: flex; flex-direction: column; }
+        .archive-header { display: flex; align-items: center; padding: 10px 15px; background-color: var(--bg-dark); border-bottom: 1px solid var(--border-color); flex-shrink: 0; gap: 15px; }
+        .archive-header h2 { margin: 0; font-size: 1.2em; flex-grow: 1;}
+        .archive-header button { background-color: var(--bg-light); border: 1px solid var(--border-color); color: var(--text-main); padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+        .archive-header button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .archive-header input[type="date"] { background-color: var(--bg-light); border: 1px solid var(--border-color); color: var(--text-main); padding: 5px; border-radius: 4px; }
+        .archive-video-container { flex-grow: 1; display: flex; justify-content: center; align-items: center; background-color: #000; overflow: hidden; position: relative; }
+        .archive-video-container video { max-width: 100%; max-height: 100%; }
+        .archive-video-placeholder { color: var(--text-secondary); }
+        .timeline-container { height: 80px; background-color: var(--bg-dark); flex-shrink: 0; border-top: 1px solid var(--border-color); padding: 10px; display: flex; align-items: center; }
+        .timeline-wrapper { width: 100%; height: 100%; background-color: var(--bg-darker); border-radius: 4px; position: relative; border: 1px solid var(--border-color); cursor: crosshair; overflow-x: auto; }
+        .timeline-labels { position: absolute; top: 0; left: 0; width: 100%; height: 20px; display: flex; color: var(--text-secondary); font-size: 12px; pointer-events: none; user-select: none; }
+        .timeline-labels span { position: absolute; transform: translateX(-50%); }
+        #timeline-recordings { position: relative; top: 0; left: 0; width: 100%; height: 100%; }
+        .timeline-block { position: absolute; top: 50%; transform: translateY(-50%); height: 80%; background-color: var(--accent-color); opacity: 0.7; cursor: pointer; border-radius: 2px; transition: opacity 0.2s; }
+        .timeline-block:hover { opacity: 1; }
+        .timeline-block.selected { box-shadow: 0 0 0 2px white; opacity: 1; }
+        #timeline-selection { position: absolute; top: 0; left: 0; height: 100%; background-color: rgba(255, 255, 0, 0.4); border: 1px dashed yellow; display: none; pointer-events: none; }
+
+        body.presentation-mode .header,
+        body.presentation-mode .sidebar,
+        body.presentation-mode .bottom-toolbar {
+            display: none;
         }
-        .archive-container {
-            display: flex;
-            height: 100%;
-            width: 100%;
+        body.presentation-mode .main-container {
+            width: 100vw;
+            height: 100vh;
         }
-        .archive-list-panel {
-            width: 300px;
-            flex-shrink: 0;
-            background-color: #f0f2f5;
-            border-right: 1px solid #ddd;
-            display: flex;
-            flex-direction: column;
-        }
-        .archive-list-header {
-            padding: 10px;
-            border-bottom: 1px solid #ddd;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .archive-list-header h3 {
-            margin: 0;
-            border: none;
-            font-size: 1.1em;
+        body.presentation-mode .view-container {
             padding: 0;
         }
-        #archive-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            overflow-y: auto;
-            flex-grow: 1;
+
+        .admin-only {
+            display: none !important;
         }
-        #archive-list li {
-            padding: 10px 15px;
-            cursor: pointer;
-            border-bottom: 1px solid #eee;
+        body.role-admin .admin-only {
+            display: flex !important;
         }
-        #archive-list li:hover {
-            background-color: #e9ecef;
+        body.role-operator .camera-item,
+        body.role-operator .grid-cell.active {
+            cursor: default;
         }
-        #archive-list li.selected {
-            background-color: var(--accent-color);
-            color: white;
+        body.role-operator .cell-controls .close-btn,
+        body.role-operator .cell-controls .stream-switch-btn,
+        body.role-operator .cell-controls .record-btn {
+            display: none !important;
         }
-        #archive-list .file-name {
-            font-weight: bold;
-            display: block;
-            margin-bottom: 4px;
-            word-break: break-all;
-        }
-        #archive-list .file-meta {
-            font-size: 0.8em;
-            opacity: 0.8;
-        }
-        .archive-player-panel {
-            flex-grow: 1;
-            background-color: #000;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: #666;
-            position: relative;
-        }
-        .archive-player-panel video {
-            max-width: 100%;
-            max-height: calc(100% - 40px);
-            display: block;
-        }
-        .archive-player-footer {
-            height: 40px;
-            width: 100%;
-            background-color: #f0f2f5;
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            padding: 0 15px;
-            gap: 15px;
-        }
-        .archive-player-footer button {
+        
+        #user-list .delete-user-btn,
+        #user-list .change-pass-btn {
             background: none;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            padding: 5px 10px;
+            border: none;
             cursor: pointer;
+            text-decoration: underline;
+            font-size: 13px;
         }
-        .archive-player-footer button:hover {
-            background-color: #e9ecef;
-        }
-        .archive-player-footer button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        .form-check-inline {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            margin-right: 15px;
-        }
-        .form-check-input {
-            width: auto !important;
-        }
+        #user-list .delete-user-btn { color: #dc3545; }
+        #user-list .change-pass-btn { color: #007bff; }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="logo" data-i18n-key="app_title"></div>
-        <div class="tabs">
-            <button class="tab active" data-i18n-key="tab_monitor"></button>
-        </div>
-    </div>
-    <div class="main-container">
-        <div class="view-container">
-            <div id="grid-container"></div>
-        </div>
-        <div class="sidebar">
-            <div class="sidebar-header">
-                <h3 data-i18n-key="devices"></h3>
-                <div class="header-buttons">
-                    <button id="add-group-btn" class="icon-button" data-i18n-tooltip="create_group_tooltip"><i class="material-icons">create_new_folder</i></button>
-                    <button id="add-camera-sidebar-btn" class="icon-button" data-i18n-tooltip="add_camera_tooltip"><i class="material-icons">add_circle_outline</i></button>
-                    <button id="general-settings-btn" class="icon-button" data-i18n-tooltip="settings_tooltip"><i class="material-icons">settings</i></button>
-                </div>
+    <div id="login-view" class="modal-backdrop">
+        <div class="modal-content" style="width: 400px; text-align: center;">
+            <h2 data-i18n-key="app_title"></h2>
+            <p data-i18n-key="login_prompt" style="color: #6c757d;"></p>
+            <div class="form-grid simple" style="grid-template-columns: 100px 1fr; padding-top: 10px;">
+                <b data-i18n-key="login"></b> <input type="text" id="login-username" autofocus>
+                <b data-i18n-key="password"></b> <input type="password" id="login-password">
             </div>
-            <div id="camera-list-container"></div>
+            <p id="login-error" style="color: var(--danger-color); height: 20px; margin-top: 10px;"></p>
+            <button id="login-btn" style="width: 100%; padding: 10px; margin-top: 5px;" data-i18n-key="login_btn"></button>
         </div>
-    </div>
-    <div class="bottom-toolbar">
-        <div class="toolbar-group">
-            <button id="open-recordings-btn" class="icon-button" data-i18n-tooltip="open_recordings_tooltip"><i class="material-icons" style="font-size: 20px;">folder</i></button>
-            <button id="open-archive-btn" class="icon-button" data-i18n-tooltip="archive_tooltip"><i class="material-icons" style="font-size: 20px;">archive</i></button>
-            <div class="status-info" id="status-info"></div>
-        </div>
-        <div class="toolbar-group" id="layout-controls"></div>
     </div>
 
+    <div id="main-app-container" class="hidden" style="display: flex; flex-direction: column; height: 100vh;">
+        <div class="header">
+            <div class="logo" data-i18n-key="app_title"></div>
+            <div class="tabs">
+                <button class="tab active" data-i18n-key="tab_monitor"></button>
+            </div>
+            <div class="window-controls">
+                <button id="minimize-btn" class="window-control-btn"><i class="material-icons">remove</i></button>
+                <button id="maximize-btn" class="window-control-btn"><i class="material-icons">crop_square</i></button>
+                <button id="close-btn" class="window-control-btn close-btn"><i class="material-icons">close</i></button>
+            </div>
+        </div>
+
+        <div id="main-view" class="main-container">
+            <div class="view-container">
+                <div id="grid-container"></div>
+            </div>
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <div class="header-buttons">
+                        <span class="admin-only" style="display: contents;">
+                            <button id="discover-btn" class="icon-button" data-i18n-tooltip="discover_cameras_tooltip"><i class="material-icons">travel_explore</i></button>
+                            <button id="add-group-btn" class="icon-button" data-i18n-tooltip="create_group_tooltip"><i class="material-icons">create_new_folder</i></button>
+                            <button id="add-camera-sidebar-btn" class="icon-button" data-i18n-tooltip="add_camera_tooltip"><i class="material-icons">add_circle_outline</i></button>
+                        </span>
+                        <button id="user-management-btn" class="icon-button admin-only" data-i18n-tooltip="user_management_tooltip"><i class="material-icons">manage_accounts</i></button>
+                        <button id="general-settings-btn" class="icon-button" data-i18n-tooltip="settings_tooltip"><i class="material-icons">settings</i></button>
+                        <button id="logout-btn" class="icon-button" data-i18n-tooltip="logout_tooltip"><i class="material-icons">logout</i></button>
+                    </div>
+                    <h3 data-i18n-key="devices"></h3>
+                </div>
+                <div id="camera-list-container"></div>
+            </div>
+        </div>
+        
+        <div class="bottom-toolbar">
+            <div class="toolbar-group">
+                <button id="open-recordings-btn" class="icon-button admin-only" data-i18n-tooltip="open_recordings_tooltip"><i class="material-icons" style="font-size: 20px;">folder</i></button>
+                <div class="status-info" id="status-info"></div>
+            </div>
+            <div class="toolbar-group admin-only" id="layout-controls"></div>
+            <div class="toolbar-group">
+                <button id="presentation-mode-btn" class="icon-button admin-only" data-i18n-tooltip="presentation_mode_tooltip"><i class="material-icons" style="font-size: 20px;">tv</i></button>
+            </div>
+        </div>
+    </div>
+    
     <!-- Модальные окна -->
+    <div id="archive-view" class="hidden">
+        <div class="archive-header">
+            <button id="archive-back-btn" class="icon-button" style="padding: 5px;"><i class="material-icons">arrow_back</i></button>
+            <h2 id="archive-camera-name"></h2>
+            <button id="archive-export-btn" data-i18n-key="archive_export_clip" disabled></button>
+            <input type="date" id="archive-date-picker">
+        </div>
+        <div class="archive-video-container">
+            <video id="archive-video-player" controls class="hidden"></video>
+            <div id="archive-video-placeholder" class="archive-video-placeholder" data-i18n-key="archive_placeholder"></div>
+        </div>
+        <div class="timeline-container">
+            <div class="timeline-wrapper" id="timeline-wrapper">
+                <div id="timeline-recordings">
+                    <div id="timeline-labels"></div>
+                    <div id="timeline-selection"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="add-camera-modal" class="modal-backdrop hidden">
         <div class="modal-content">
             <span id="add-modal-close-btn" class="modal-close-btn">×</span>
@@ -457,507 +383,195 @@
                 <div id="tab-system" class="tab-content">
                     <h3 data-i18n-key="settings_tab_system"></h3>
                     <div class="form-grid simple">
-                        <label for="system.webPort">Port for HTTP access</label>
-                        <input type="number" id="system.webPort" min="1" max="65535" step="1">
-                        
-                        <label for="system.httpsPort">Port for HTTPS access</label>
-                        <input type="number" id="system.httpsPort" min="1" max="65535" step="1">
-                
-                        <label for="system.httpsCertificate">Path to public SSL certificate</label>
-                        <input type="text" id="system.httpsCertificate">
-                
-                        <label for="system.httpsCertificateKey">Path to private SSL key</label>
-                        <input type="text" id="system.httpsCertificateKey">
-                
-                        <label for="system.logLevel">Severity of logging</label>
-                        <select id="system.logLevel">
-                            <option value="verbose">verbose</option>
-                            <option value="debug">debug</option>
-                            <option value="info">info</option>
-                        </select>
-                
-                        <label for="system.unsafe">Deactivate authorization</label>
-                        <div class="form-check-inline">
-                            <input type="checkbox" id="system.unsafe" class="form-check-input">
-                        </div>
-                
-                        <label for="system.buffer">Maximum buffer size</label>
-                        <input type="number" id="system.buffer">
-                
-                        <label for="system.plugins">Enable plugin support</label>
-                        <div class="form-check-inline">
-                            <input type="checkbox" id="system.plugins" class="form-check-input">
-                        </div>
+                        <label for="system.webPort">Port for HTTP access</label> <input type="number" id="system.webPort" min="1" max="65535" step="1">
+                        <label for="system.httpsPort">Port for HTTPS access</label> <input type="number" id="system.httpsPort" min="1" max="65535" step="1">
+                        <label for="system.httpsCertificate">Path to public SSL certificate</label> <input type="text" id="system.httpsCertificate">
+                        <label for="system.httpsCertificateKey">Path to private SSL key</label> <input type="text" id="system.httpsCertificateKey">
+                        <label for="system.logLevel">Severity of logging</label> <select id="system.logLevel"><option value="verbose">verbose</option><option value="debug">debug</option><option value="info">info</option></select>
+                        <label for="system.unsafe">Deactivate authorization</label> <div class="form-check-inline"><input type="checkbox" id="system.unsafe" class="form-check-input"></div>
+                        <label for="system.buffer">Maximum buffer size</label> <input type="number" id="system.buffer">
+                        <label for="system.plugins">Enable plugin support</label> <div class="form-check-inline"><input type="checkbox" id="system.plugins" class="form-check-input"></div>
                     </div>
                 </div>
-
                 <div id="tab-isp" class="tab-content">
                     <h3 data-i18n-key="settings_tab_isp"></h3>
                     <div class="form-grid simple">
-                        <label for="isp.drc">Dynamic range compression</label>
-                        <input type="number" id="isp.drc" step="1">
-                
-                        <label for="isp.sensorConfig">Sensor configuration file</label>
-                        <input type="text" id="isp.sensorConfig">
-                
-                        <label for="isp.antiFlicker">Anti-flicker</label>
-                        <select id="isp.antiFlicker">
-                            <option value="disabled">disabled</option>
-                            <option value="50">50</option>
-                            <option value="60">60</option>
-                        </select>
-                        
-                        <label for="isp.iqProfile">Image quality profile</label>
-                        <input type="text" id="isp.iqProfile">
-                
-                        <label for="isp.blkCnt">Memory blocks for encoder</label>
-                        <input type="number" id="isp.blkCnt" step="1">
-                
-                        <label for="isp.slowShutter">Slow shutter mode</label>
-                        <select id="isp.slowShutter">
-                            <option value="disabled">disabled</option>
-                            <option value="low">low</option>
-                            <option value="medium">medium</option>
-                            <option value="high">high</option>
-                        </select>
-                
-                        <label for="isp.rawMode">Mode for capturing RAW images</label>
-                        <select id="isp.rawMode">
-                            <option value="none">none</option>
-                            <option value="slow">slow</option>
-                            <option value="fast">fast</option>
-                        </select>
-                
-                        <label for="isp.dis">Digital image stabilization</label>
-                        <div class="form-check-inline">
-                            <input type="checkbox" id="isp.dis" class="form-check-input">
-                        </div>
-                        
-                        <label for="isp.memMode">Reduce memory usage</label>
-                        <select id="isp.memMode">
-                            <option value="normal">normal</option>
-                            <option value="reduction">reduction</option>
-                        </select>
+                        <label for="isp.drc">Dynamic range compression</label> <input type="number" id="isp.drc" step="1">
+                        <label for="isp.sensorConfig">Sensor configuration file</label> <input type="text" id="isp.sensorConfig">
+                        <label for="isp.antiFlicker">Anti-flicker</label> <select id="isp.antiFlicker"><option value="disabled">disabled</option><option value="50">50</option><option value="60">60</option></select>
+                        <label for="isp.iqProfile">Image quality profile</label> <input type="text" id="isp.iqProfile">
+                        <label for="isp.blkCnt">Memory blocks for encoder</label> <input type="number" id="isp.blkCnt" step="1">
+                        <label for="isp.slowShutter">Slow shutter mode</label> <select id="isp.slowShutter"><option value="disabled">disabled</option><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select>
+                        <label for="isp.rawMode">Mode for capturing RAW images</label> <select id="isp.rawMode"><option value="none">none</option><option value="slow">slow</option><option value="fast">fast</option></select>
+                        <label for="isp.dis">Digital image stabilization</label> <div class="form-check-inline"><input type="checkbox" id="isp.dis" class="form-check-input"></div>
+                        <label for="isp.memMode">Reduce memory usage</label> <select id="isp.memMode"><option value="normal">normal</option><option value="reduction">reduction</option></select>
                     </div>
                 </div>
-
                 <div id="tab-image" class="tab-content">
                     <h3 data-i18n-key="settings_tab_image"></h3>
                     <div class="form-grid simple">
-                        <label for="image.mirror">Flip image horizontally</label>
-                        <div class="form-check-inline">
-                            <input type="checkbox" id="image.mirror" class="form-check-input">
-                        </div>
-                
-                        <label for="image.flip">Flip image vertically</label>
-                        <div class="form-check-inline">
-                            <input type="checkbox" id="image.flip" class="form-check-input">
-                        </div>
-                
-                        <label for="image.contrast">Image contrast</label>
-                        <div class="form-input-wrapper">
-                            <input type="range" id="image.contrast" min="0" max="100" step="1" style="flex-grow: 1;">
-                            <span class="range-value" id="image.contrast-value" style="min-width: 30px; text-align: center;">50</span>
-                        </div>
-                
-                        <label for="image.hue">Image hue</label>
-                        <div class="form-input-wrapper">
-                            <input type="range" id="image.hue" min="0" max="100" step="1" style="flex-grow: 1;">
-                            <span class="range-value" id="image.hue-value" style="min-width: 30px; text-align: center;">50</span>
-                        </div>
-                
-                        <label for="image.saturation">Image saturation</label>
-                        <div class="form-input-wrapper">
-                            <input type="range" id="image.saturation" min="0" max="100" step="1" style="flex-grow: 1;">
-                            <span class="range-value" id="image.saturation-value" style="min-width: 30px; text-align: center;">50</span>
-                        </div>
-                
-                        <label for="image.luminance">Image luminance</label>
-                        <div class="form-input-wrapper">
-                            <input type="range" id="image.luminance" min="0" max="100" step="1" style="flex-grow: 1;">
-                            <span class="range-value" id="image.luminance-value" style="min-width: 30px; text-align: center;">50</span>
-                        </div>
-                
-                        <label for="image.rotate">Rotate image clockwise</label>
-                        <select id="image.rotate">
-                            <option value="0">0</option>
-                            <option value="90">90</option>
-                            <option value="270">270</option>
-                        </select>
-                
-                        <label for="image.tuning">Automatic image tuning</label>
-                        <div class="form-check-inline">
-                            <input type="checkbox" id="image.tuning" class="form-check-input">
-                        </div>
+                        <label for="image.mirror">Flip image horizontally</label> <div class="form-check-inline"><input type="checkbox" id="image.mirror" class="form-check-input"></div>
+                        <label for="image.flip">Flip image vertically</label> <div class="form-check-inline"><input type="checkbox" id="image.flip" class="form-check-input"></div>
+                        <label for="image.contrast">Image contrast</label> <div class="form-input-wrapper"><input type="range" id="image.contrast" min="0" max="100" step="1" style="flex-grow: 1;"><span class="range-value" id="image.contrast-value" style="min-width: 30px; text-align: center;">50</span></div>
+                        <label for="image.hue">Image hue</label> <div class="form-input-wrapper"><input type="range" id="image.hue" min="0" max="100" step="1" style="flex-grow: 1;"><span class="range-value" id="image.hue-value" style="min-width: 30px; text-align: center;">50</span></div>
+                        <label for="image.saturation">Image saturation</label> <div class="form-input-wrapper"><input type="range" id="image.saturation" min="0" max="100" step="1" style="flex-grow: 1;"><span class="range-value" id="image.saturation-value" style="min-width: 30px; text-align: center;">50</span></div>
+                        <label for="image.luminance">Image luminance</label> <div class="form-input-wrapper"><input type="range" id="image.luminance" min="0" max="100" step="1" style="flex-grow: 1;"><span class="range-value" id="image.luminance-value" style="min-width: 30px; text-align: center;">50</span></div>
+                        <label for="image.rotate">Rotate image clockwise</label> <select id="image.rotate"><option value="0">0</option><option value="90">90</option><option value="270">270</option></select>
+                        <label for="image.tuning">Automatic image tuning</label> <div class="form-check-inline"><input type="checkbox" id="image.tuning" class="form-check-input"></div>
                     </div>
                 </div>
-
                 <div id="tab-video0" class="tab-content">
                     <h3 data-i18n-key="settings_tab_video0"></h3>
                     <div class="form-grid simple">
-                        <label for="video0.enabled">Enable video</label>
-                        <div class="form-check-inline"><input type="checkbox" id="video0.enabled" class="form-check-input"></div>
-
-                        <label for="video0.codec">Video codec</label>
-                        <select id="video0.codec"><option value="h264">h264</option><option value="h265">h265</option></select>
-
-                        <label for="video0.size">Video resolution</label>
-                        <input type="text" id="video0.size" placeholder="1920x1080">
-                        
-                        <label for="video0.fps">Video frame rate</label>
-                        <input type="number" id="video0.fps" min="1" max="120" step="1">
-                        
-                        <label for="video0.bitrate">Video bitrate (kbps)</label>
-                        <input type="number" id="video0.bitrate" step="1">
-                        
-                        <label for="video0.rcMode">Rate control mode</label>
-                        <select id="video0.rcMode"><option value="cbr">cbr</option><option value="vbr">vbr</option><option value="avbr">avbr</option></select>
-                        
-                        <label for="video0.profile">Video profile</label>
-                        <select id="video0.profile"><option value="base">base</option><option value="main">main</option><option value="high">high</option></select>
-                        
-                        <label for="video0.gopSize">I-frame interval (s)</label>
-                        <input type="text" id="video0.gopSize">
-                        
-                        <label for="video0.crop">Crop video (WxH@X,Y)</label>
-                        <input type="text" id="video0.crop" placeholder="640x360@0,0">
-                        
-                        <label for="video0.gopMode">GOP mode</label>
-                        <select id="video0.gopMode"><option value="normal">normal</option><option value="dual">dual</option><option value="smart">smart</option></select>
+                        <label for="video0.enabled">Enable video</label> <div class="form-check-inline"><input type="checkbox" id="video0.enabled" class="form-check-input"></div>
+                        <label for="video0.codec">Video codec</label> <select id="video0.codec"><option value="h264">h264</option><option value="h265">h265</option></select>
+                        <label for="video0.size">Video resolution</label> <input type="text" id="video0.size" placeholder="1920x1080">
+                        <label for="video0.fps">Video frame rate</label> <input type="number" id="video0.fps" min="1" max="120" step="1">
+                        <label for="video0.bitrate">Video bitrate (kbps)</label> <input type="number" id="video0.bitrate" step="1">
+                        <label for="video0.rcMode">Rate control mode</label> <select id="video0.rcMode"><option value="cbr">cbr</option><option value="vbr">vbr</option><option value="avbr">avbr</option></select>
+                        <label for="video0.profile">Video profile</label> <select id="video0.profile"><option value="base">base</option><option value="main">main</option><option value="high">high</option></select>
+                        <label for="video0.gopSize">I-frame interval (s)</label> <input type="text" id="video0.gopSize">
+                        <label for="video0.crop">Crop video (WxH@X,Y)</label> <input type="text" id="video0.crop" placeholder="640x360@0,0">
+                        <label for="video0.gopMode">GOP mode</label> <select id="video0.gopMode"><option value="normal">normal</option><option value="dual">dual</option><option value="smart">smart</option></select>
                     </div>
                 </div>
-
                 <div id="tab-video1" class="tab-content">
                     <h3 data-i18n-key="settings_tab_video1"></h3>
                     <div class="form-grid simple">
-                        <label for="video1.enabled">Enable video</label>
-                        <div class="form-check-inline"><input type="checkbox" id="video1.enabled" class="form-check-input"></div>
-
-                        <label for="video1.codec">Video codec</label>
-                        <select id="video1.codec"><option value="h264">h264</option><option value="h265">h265</option></select>
-
-                        <label for="video1.size">Video resolution</label>
-                        <input type="text" id="video1.size" placeholder="704x576">
-                        
-                        <label for="video1.fps">Video frame rate</label>
-                        <input type="number" id="video1.fps" min="1" max="120" step="1">
-                        
-                        <label for="video1.bitrate">Video bitrate (kbps)</label>
-                        <input type="number" id="video1.bitrate" step="1">
-                        
-                        <label for="video1.rcMode">Rate control mode</label>
-                        <select id="video1.rcMode"><option value="cbr">cbr</option><option value="vbr">vbr</option><option value="avbr">avbr</option></select>
-                        
-                        <label for="video1.profile">Video profile</label>
-                        <select id="video1.profile"><option value="base">base</option><option value="main">main</option><option value="high">high</option></select>
-                        
-                        <label for="video1.gopSize">I-frame interval (s)</label>
-                        <input type="text" id="video1.gopSize">
-                        
-                        <label for="video1.crop">Crop video (WxH@X,Y)</label>
-                        <input type="text" id="video1.crop" placeholder="640x360@0,0">
-                        
-                        <label for="video1.gopMode">GOP mode</label>
-                        <select id="video1.gopMode"><option value="normal">normal</option><option value="dual">dual</option><option value="smart">smart</option></select>
+                        <label for="video1.enabled">Enable video</label> <div class="form-check-inline"><input type="checkbox" id="video1.enabled" class="form-check-input"></div>
+                        <label for="video1.codec">Video codec</label> <select id="video1.codec"><option value="h264">h264</option><option value="h265">h265</option></select>
+                        <label for="video1.size">Video resolution</label> <input type="text" id="video1.size" placeholder="704x576">
+                        <label for="video1.fps">Video frame rate</label> <input type="number" id="video1.fps" min="1" max="120" step="1">
+                        <label for="video1.bitrate">Video bitrate (kbps)</label> <input type="number" id="video1.bitrate" step="1">
+                        <label for="video1.rcMode">Rate control mode</label> <select id="video1.rcMode"><option value="cbr">cbr</option><option value="vbr">vbr</option><option value="avbr">avbr</option></select>
+                        <label for="video1.profile">Video profile</label> <select id="video1.profile"><option value="base">base</option><option value="main">main</option><option value="high">high</option></select>
+                        <label for="video1.gopSize">I-frame interval (s)</label> <input type="text" id="video1.gopSize">
+                        <label for="video1.crop">Crop video (WxH@X,Y)</label> <input type="text" id="video1.crop" placeholder="640x360@0,0">
+                        <label for="video1.gopMode">GOP mode</label> <select id="video1.gopMode"><option value="normal">normal</option><option value="dual">dual</option><option value="smart">smart</option></select>
                     </div>
                 </div>
-                
                 <div id="tab-jpeg" class="tab-content">
                     <h3 data-i18n-key="settings_tab_jpeg"></h3>
                     <div class="form-grid simple">
-                        <label for="jpeg.enabled">Enable JPEG support</label>
-                        <div class="form-check-inline"><input type="checkbox" id="jpeg.enabled" class="form-check-input"></div>
-
-                        <label for="jpeg.size">JPEG resolution</label>
-                        <input type="text" id="jpeg.size" placeholder="1280x720">
-
-                        <label for="jpeg.qfactor">JPEG quality level</label>
-                        <div class="form-input-wrapper">
-                            <input type="range" id="jpeg.qfactor" min="1" max="100" step="1" style="flex-grow: 1;">
-                            <span class="range-value" id="jpeg.qfactor-value" style="min-width: 30px; text-align: center;">50</span>
-                        </div>
-                        
-                        <label for="jpeg.fps">JPEG frames per second</label>
-                        <div class="form-input-wrapper">
-                            <input type="range" id="jpeg.fps" min="1" max="20" step="1" style="flex-grow: 1;">
-                            <span class="range-value" id="jpeg.fps-value" style="min-width: 30px; text-align: center;">5</span>
-                        </div>
-                        
-                        <label for="jpeg.rtsp">Enable MJPEG over RTSP</label>
-                        <div class="form-check-inline"><input type="checkbox" id="jpeg.rtsp" class="form-check-input"></div>
+                        <label for="jpeg.enabled">Enable JPEG support</label> <div class="form-check-inline"><input type="checkbox" id="jpeg.enabled" class="form-check-input"></div>
+                        <label for="jpeg.size">JPEG resolution</label> <input type="text" id="jpeg.size" placeholder="1280x720">
+                        <label for="jpeg.qfactor">JPEG quality level</label> <div class="form-input-wrapper"><input type="range" id="jpeg.qfactor" min="1" max="100" step="1" style="flex-grow: 1;"><span class="range-value" id="jpeg.qfactor-value" style="min-width: 30px; text-align: center;">50</span></div>
+                        <label for="jpeg.fps">JPEG frames per second</label> <div class="form-input-wrapper"><input type="range" id="jpeg.fps" min="1" max="20" step="1" style="flex-grow: 1;"><span class="range-value" id="jpeg.fps-value" style="min-width: 30px; text-align: center;">5</span></div>
+                        <label for="jpeg.rtsp">Enable MJPEG over RTSP</label> <div class="form-check-inline"><input type="checkbox" id="jpeg.rtsp" class="form-check-input"></div>
                     </div>
                 </div>
-
                 <div id="tab-osd" class="tab-content">
                     <h3 data-i18n-key="settings_tab_osd"></h3>
                     <div class="form-grid simple">
-                        <label for="osd.enabled">Enable On-Screen Display</label>
-                        <div class="form-check-inline"><input type="checkbox" id="osd.enabled" class="form-check-input"></div>
-
-                        <label for="osd.font">Path to font file</label>
-                        <input type="text" id="osd.font">
-
-                        <label for="osd.template">OSD template</label>
-                        <input type="text" id="osd.template">
-
-                        <label for="osd.size">OSD font size</label>
-                        <input type="text" id="osd.size">
-                        
-                        <label for="osd.posX">Horizontal position</label>
-                        <input type="number" id="osd.posX" step="1">
-                        
-                        <label for="osd.posY">Vertical position</label>
-                        <input type="number" id="osd.posY" step="1">
-
-                        <label for="osd.privacyMasks">Privacy masks</label>
-                        <input type="text" id="osd.privacyMasks" placeholder="x,y,w,h;...">
+                        <label for="osd.enabled">Enable On-Screen Display</label> <div class="form-check-inline"><input type="checkbox" id="osd.enabled" class="form-check-input"></div>
+                        <label for="osd.font">Path to font file</label> <input type="text" id="osd.font">
+                        <label for="osd.template">OSD template</label> <input type="text" id="osd.template">
+                        <label for="osd.size">OSD font size</label> <input type="text" id="osd.size">
+                        <label for="osd.posX">Horizontal position</label> <input type="number" id="osd.posX" step="1">
+                        <label for="osd.posY">Vertical position</label> <input type="number" id="osd.posY" step="1">
+                        <label for="osd.privacyMasks">Privacy masks</label> <input type="text" id="osd.privacyMasks" placeholder="x,y,w,h;...">
                     </div>
                 </div>
-
                 <div id="tab-audio" class="tab-content">
                     <h3 data-i18n-key="settings_tab_audio"></h3>
                     <div class="form-grid simple">
-                        <label for="audio.enabled">Enable microphone</label>
-                        <div class="form-check-inline"><input type="checkbox" id="audio.enabled" class="form-check-input"></div>
-                
-                        <label for="audio.volume">Microphone volume</label>
-                        <div class="form-input-wrapper">
-                            <input type="range" id="audio.volume" min="0" max="100" step="1" style="flex-grow: 1;">
-                            <span class="range-value" id="audio.volume-value" style="min-width: 30px; text-align: center;">70</span>
-                        </div>
-                
-                        <label for="audio.srate">Audio sampling rate</label>
-                        <select id="audio.srate">
-                            <option value="8000">8000</option>
-                            <option value="16000">16000</option>
-                            <option value="32000">32000</option>
-                            <option value="48000">48000</option>
-                        </select>
-                
-                        <label for="audio.codec">Codec for RTSP and MP4</label>
-                        <select id="audio.codec">
-                            <option value="opus">opus</option>
-                            <option value="aac">aac</option>
-                            <option value="pcm">pcm</option>
-                            <option value="alaw">alaw</option>
-                            <option value="ulaw">ulaw</option>
-                        </select>
-                
-                        <label for="audio.outputEnabled">Enable speaker</label>
-                        <div class="form-check-inline"><input type="checkbox" id="audio.outputEnabled" class="form-check-input"></div>
-                
-                        <label for="audio.outputVolume">Speaker volume</label>
-                        <div class="form-input-wrapper">
-                            <input type="range" id="audio.outputVolume" min="0" max="100" step="1" style="flex-grow: 1;">
-                            <span class="range-value" id="audio.outputVolume-value" style="min-width: 30px; text-align: center;">40</span>
-                        </div>
-                
-                        <label for="audio.speakerPin">GPIO pin for speaker</label>
-                        <input type="number" id="audio.speakerPin" step="1">
-                
-                        <label for="audio.speakerPinInvert">Invert speaker control</label>
-                        <div class="form-check-inline"><input type="checkbox" id="audio.speakerPinInvert" class="form-check-input"></div>
-                
-                        <label for="audio.dual">Dual microphone</label>
-                        <div class="form-check-inline"><input type="checkbox" id="audio.dual" class="form-check-input"></div>
+                        <label for="audio.enabled">Enable microphone</label> <div class="form-check-inline"><input type="checkbox" id="audio.enabled" class="form-check-input"></div>
+                        <label for="audio.volume">Microphone volume</label> <div class="form-input-wrapper"><input type="range" id="audio.volume" min="0" max="100" step="1" style="flex-grow: 1;"><span class="range-value" id="audio.volume-value" style="min-width: 30px; text-align: center;">70</span></div>
+                        <label for="audio.srate">Audio sampling rate</label> <select id="audio.srate"><option value="8000">8000</option><option value="16000">16000</option><option value="32000">32000</option><option value="48000">48000</option></select>
+                        <label for="audio.codec">Codec for RTSP and MP4</label> <select id="audio.codec"><option value="opus">opus</option><option value="aac">aac</option><option value="pcm">pcm</option><option value="alaw">alaw</option><option value="ulaw">ulaw</option></select>
+                        <label for="audio.outputEnabled">Enable speaker</label> <div class="form-check-inline"><input type="checkbox" id="audio.outputEnabled" class="form-check-input"></div>
+                        <label for="audio.outputVolume">Speaker volume</label> <div class="form-input-wrapper"><input type="range" id="audio.outputVolume" min="0" max="100" step="1" style="flex-grow: 1;"><span class="range-value" id="audio.outputVolume-value" style="min-width: 30px; text-align: center;">40</span></div>
+                        <label for="audio.speakerPin">GPIO pin for speaker</label> <input type="number" id="audio.speakerPin" step="1">
+                        <label for="audio.speakerPinInvert">Invert speaker control</label> <div class="form-check-inline"><input type="checkbox" id="audio.speakerPinInvert" class="form-check-input"></div>
+                        <label for="audio.dual">Dual microphone</label> <div class="form-check-inline"><input type="checkbox" id="audio.dual" class="form-check-input"></div>
                     </div>
                 </div>
-
                 <div id="tab-rtsp" class="tab-content">
                     <h3 data-i18n-key="settings_tab_rtsp"></h3>
                     <div class="form-grid simple">
-                        <label for="rtsp.enabled">Enable RTSP</label>
-                        <div class="form-check-inline"><input type="checkbox" id="rtsp.enabled" class="form-check-input"></div>
-                        
-                        <label for="rtsp.port">Port for RTSP protocol</label>
-                        <input type="number" id="rtsp.port" min="1" max="65535" step="1">
+                        <label for="rtsp.enabled">Enable RTSP</label> <div class="form-check-inline"><input type="checkbox" id="rtsp.enabled" class="form-check-input"></div>
+                        <label for="rtsp.port">Port for RTSP protocol</label> <input type="number" id="rtsp.port" min="1" max="65535" step="1">
                     </div>
                 </div>
-
                 <div id="tab-nightMode" class="tab-content">
                     <h3 data-i18n-key="settings_tab_night"></h3>
                     <div class="form-grid simple">
-                        <label for="nightMode.colorToGray">Colorless night mode</label>
-                        <div class="form-check-inline"><input type="checkbox" id="nightMode.colorToGray" class="form-check-input"></div>
-
-                        <label for="nightMode.irCutPin1">GPIO pin1 for IRcut</label>
-                        <input type="number" id="nightMode.irCutPin1" step="1">
-
-                        <label for="nightMode.irCutSingleInvert">Single IRcut is inverted</label>
-                        <div class="form-check-inline"><input type="checkbox" id="nightMode.irCutSingleInvert" class="form-check-input"></div>
-                        
-                        <label for="nightMode.irCutPin2">GPIO pin2 for IRcut</label>
-                        <input type="number" id="nightMode.irCutPin2" step="1">
-
-                        <label for="nightMode.backlightPin">GPIO pin for camera light</label>
-                        <input type="number" id="nightMode.backlightPin" step="1">
-
-                        <label for="nightMode.overrideDrc">DRC value in night mode</label>
-                        <input type="number" id="nightMode.overrideDrc" step="1">
-                        
-                        <label for="nightMode.lightMonitor">Enable light monitor</label>
-                        <div class="form-check-inline"><input type="checkbox" id="nightMode.lightMonitor" class="form-check-input"></div>
-                        
-                        <label for="nightMode.lightSensorPin">GPIO pin for light sensor</label>
-                        <input type="number" id="nightMode.lightSensorPin" step="1">
-
-                        <label for="nightMode.lightSensorInvert">Light sensor is inverted</label>
-                        <div class="form-check-inline"><input type="checkbox" id="nightMode.lightSensorInvert" class="form-check-input"></div>
-
-                        <label for="nightMode.monitorDelay">Delay before switching</label>
-                        <div class="form-input-wrapper">
-                            <input type="range" id="nightMode.monitorDelay" min="0" max="60" step="1" style="flex-grow: 1;">
-                            <span class="range-value" id="nightMode.monitorDelay-value" style="min-width: 30px; text-align: center;">0</span>
-                        </div>
-                        
-                        <label for="nightMode.minThreshold">Min threshold for day</label>
-                        <input type="number" id="nightMode.minThreshold" step="1">
-                        
-                        <label for="nightMode.maxThreshold">Max threshold for night</label>
-                        <input type="number" id="nightMode.maxThreshold" step="1">
+                        <label for="nightMode.colorToGray">Colorless night mode</label> <div class="form-check-inline"><input type="checkbox" id="nightMode.colorToGray" class="form-check-input"></div>
+                        <label for="nightMode.irCutPin1">GPIO pin1 for IRcut</label> <input type="number" id="nightMode.irCutPin1" step="1">
+                        <label for="nightMode.irCutSingleInvert">Single IRcut is inverted</label> <div class="form-check-inline"><input type="checkbox" id="nightMode.irCutSingleInvert" class="form-check-input"></div>
+                        <label for="nightMode.irCutPin2">GPIO pin2 for IRcut</label> <input type="number" id="nightMode.irCutPin2" step="1">
+                        <label for="nightMode.backlightPin">GPIO pin for camera light</label> <input type="number" id="nightMode.backlightPin" step="1">
+                        <label for="nightMode.overrideDrc">DRC value in night mode</label> <input type="number" id="nightMode.overrideDrc" step="1">
+                        <label for="nightMode.lightMonitor">Enable light monitor</label> <div class="form-check-inline"><input type="checkbox" id="nightMode.lightMonitor" class="form-check-input"></div>
+                        <label for="nightMode.lightSensorPin">GPIO pin for light sensor</label> <input type="number" id="nightMode.lightSensorPin" step="1">
+                        <label for="nightMode.lightSensorInvert">Light sensor is inverted</label> <div class="form-check-inline"><input type="checkbox" id="nightMode.lightSensorInvert" class="form-check-input"></div>
+                        <label for="nightMode.monitorDelay">Delay before switching</label> <div class="form-input-wrapper"><input type="range" id="nightMode.monitorDelay" min="0" max="60" step="1" style="flex-grow: 1;"><span class="range-value" id="nightMode.monitorDelay-value" style="min-width: 30px; text-align: center;">0</span></div>
+                        <label for="nightMode.minThreshold">Min threshold for day</label> <input type="number" id="nightMode.minThreshold" step="1">
+                        <label for="nightMode.maxThreshold">Max threshold for night</label> <input type="number" id="nightMode.maxThreshold" step="1">
                     </div>
                 </div>
-                
                 <div id="tab-motionDetect" class="tab-content">
                     <h3 data-i18n-key="settings_tab_motion"></h3>
                     <div class="form-grid simple">
-                        <label for="motionDetect.enabled">Enable motion detection</label>
-                        <div class="form-check-inline">
-                            <input type="checkbox" id="motionDetect.enabled" class="form-check-input">
-                        </div>
-                        
-                        <label for="motionDetect.visualize">Visualize motion detection</label>
-                        <div class="form-check-inline">
-                            <input type="checkbox" id="motionDetect.visualize" class="form-check-input">
-                        </div>
-
-                        <label for="motionDetect.debug">Enable debugging</label>
-                        <div class="form-check-inline">
-                            <input type="checkbox" id="motionDetect.debug" class="form-check-input">
-                        </div>
-                        
-                        <label for="motionDetect.roi">Region of interest</label>
-                        <input type="text" id="motionDetect.roi" placeholder="x,y,w,h;...">
+                        <label for="motionDetect.enabled">Enable motion detection</label> <div class="form-check-inline"><input type="checkbox" id="motionDetect.enabled" class="form-check-input"></div>
+                        <label for="motionDetect.visualize">Visualize motion detection</label> <div class="form-check-inline"><input type="checkbox" id="motionDetect.visualize" class="form-check-input"></div>
+                        <label for="motionDetect.debug">Enable debugging</label> <div class="form-check-inline"><input type="checkbox" id="motionDetect.debug" class="form-check-input"></div>
+                        <label for="motionDetect.roi">Region of interest</label> <input type="text" id="motionDetect.roi" placeholder="x,y,w,h;...">
                     </div>
                 </div>
-
                 <div id="tab-records" class="tab-content">
                     <h3 data-i18n-key="settings_tab_record"></h3>
                     <div class="form-grid simple">
-                        <label for="records.enabled">Enable recording</label>
-                        <div class="form-check-inline">
-                            <input type="checkbox" id="records.enabled" class="form-check-input">
-                        </div>
-
-                        <label for="records.path">Recording path</label>
-                        <input type="text" id="records.path" placeholder="/mnt/mmcblk0p1/%F">
-
-                        <label for="records.split">File limit in minutes</label>
-                        <input type="number" id="records.split" min="1" step="1">
-
-                        <label for="records.maxUsage">Limit of available space usage (%)</label>
-                        <div class="form-input-wrapper">
-                            <input type="range" id="records.maxUsage" min="1" max="100" step="1" style="flex-grow: 1;">
-                            <span class="range-value" id="records.maxUsage-value" style="min-width: 30px; text-align: center;">95</span>
-                        </div>
-
-                        <label for="records.substream">Record substream</label>
-                        <div class="form-check-inline">
-                            <input type="checkbox" id="records.substream" class="form-check-input">
-                        </div>
+                        <label for="records.enabled">Enable recording</label> <div class="form-check-inline"><input type="checkbox" id="records.enabled" class="form-check-input"></div>
+                        <label for="records.path">Recording path</label> <input type="text" id="records.path" placeholder="/mnt/mmcblk0p1/%F">
+                        <label for="records.split">File limit in minutes</label> <input type="number" id="records.split" min="1" step="1">
+                        <label for="records.maxUsage">Limit of available space usage (%)</label> <div class="form-input-wrapper"><input type="range" id="records.maxUsage" min="1" max="100" step="1" style="flex-grow: 1;"><span class="range-value" id="records.maxUsage-value" style="min-width: 30px; text-align: center;">95</span></div>
+                        <label for="records.substream">Record substream</label> <div class="form-check-inline"><input type="checkbox" id="records.substream" class="form-check-input"></div>
                     </div>
                 </div>
-                
                 <div id="tab-outgoing" class="tab-content">
                     <h3 data-i18n-key="settings_tab_outgoing"></h3>
                     <div class="form-grid simple">
-                        <label for="outgoing.enabled">Enable outgoing streams</label>
-                        <div class="form-check-inline">
-                            <input type="checkbox" id="outgoing.enabled" class="form-check-input">
-                        </div>
-
-                        <label for="outgoing.server">Address for outgoing stream</label>
-                        <input type="text" id="outgoing.server" placeholder="rtmp://...">
-
-                        <label for="outgoing.naluSize">RTP packet size</label>
-                        <input type="number" id="outgoing.naluSize" min="1" step="1">
-
-                        <label for="outgoing.substream">RTMP substream</label>
-                        <div class="form-check-inline">
-                            <input type="checkbox" id="outgoing.substream" class="form-check-input">
-                        </div>
+                        <label for="outgoing.enabled">Enable outgoing streams</label> <div class="form-check-inline"><input type="checkbox" id="outgoing.enabled" class="form-check-input"></div>
+                        <label for="outgoing.server">Address for outgoing stream</label> <input type="text" id="outgoing.server" placeholder="rtmp://...">
+                        <label for="outgoing.naluSize">RTP packet size</label> <input type="number" id="outgoing.naluSize" min="1" step="1">
+                        <label for="outgoing.substream">RTMP substream</label> <div class="form-check-inline"><input type="checkbox" id="outgoing.substream" class="form-check-input"></div>
                     </div>
                 </div>
-                
                 <div id="tab-watchdog" class="tab-content">
                     <h3 data-i18n-key="settings_tab_watchdog"></h3>
                     <div class="form-grid simple">
-                        <label for="watchdog.enabled">Enable Watchdog</label>
-                        <div class="form-check-inline">
-                            <input type="checkbox" id="watchdog.enabled" class="form-check-input">
-                        </div>
-                        
-                        <label for="watchdog.timeout">Watchdog timeout (seconds)</label>
-                        <input type="number" id="watchdog.timeout" min="1" step="1">
+                        <label for="watchdog.enabled">Enable Watchdog</label> <div class="form-check-inline"><input type="checkbox" id="watchdog.enabled" class="form-check-input"></div>
+                        <label for="watchdog.timeout">Watchdog timeout (seconds)</label> <input type="number" id="watchdog.timeout" min="1" step="1">
                     </div>
                 </div>
-                
                 <div id="tab-hls" class="tab-content">
                     <h3 data-i18n-key="settings_tab_hls"></h3>
                     <div class="form-grid simple">
-                        <label for="hls.enabled">Enable HTTP Live Streaming</label>
-                        <div class="form-check-inline">
-                            <input type="checkbox" id="hls.enabled" class="form-check-input">
-                        </div>
+                        <label for="hls.enabled">Enable HTTP Live Streaming</label> <div class="form-check-inline"><input type="checkbox" id="hls.enabled" class="form-check-input"></div>
                     </div>
                 </div>
-                
                 <div id="tab-onvif" class="tab-content">
                     <h3 data-i18n-key="settings_tab_onvif"></h3>
                     <div class="form-grid simple">
-                        <label for="onvif.enabled">Enable ONVIF protocol support</label>
-                        <div class="form-check-inline">
-                            <input type="checkbox" id="onvif.enabled" class="form-check-input">
-                        </div>
+                        <label for="onvif.enabled">Enable ONVIF protocol support</label> <div class="form-check-inline"><input type="checkbox" id="onvif.enabled" class="form-check-input"></div>
                     </div>
                 </div>
-                
                 <div id="tab-ipeye" class="tab-content">
                     <h3 data-i18n-key="settings_tab_ipeye"></h3>
                     <div class="form-grid simple">
-                        <label for="ipeye.enabled">Enable IPEYE protocol support</label>
-                        <div class="form-check-inline">
-                            <input type="checkbox" id="ipeye.enabled" class="form-check-input">
-                        </div>
+                        <label for="ipeye.enabled">Enable IPEYE protocol support</label> <div class="form-check-inline"><input type="checkbox" id="ipeye.enabled" class="form-check-input"></div>
                     </div>
                 </div>
-
                 <div id="tab-netip" class="tab-content">
                     <h3 data-i18n-key="settings_tab_netip"></h3>
                     <div class="form-grid simple">
-                        <label for="netip.enabled">Enable NETIP protocol support</label>
-                        <div class="form-check-inline">
-                            <input type="checkbox" id="netip.enabled" class="form-check-input">
-                        </div>
-
-                        <label for="netip.user">NETIP username</label>
-                        <input type="text" id="netip.user">
-
-                        <label for="netip.password">Hash of password</label>
-                        <input type="text" id="netip.password">
-
-                        <label for="netip.port">NETIP port</label>
-                        <input type="number" id="netip.port" min="1" max="65535" step="1">
-
-                        <label for="netip.snapshots">NETIP snapshots</label>
-                        <div class="form-check-inline">
-                            <input type="checkbox" id="netip.snapshots" class="form-check-input">
-                        </div>
-
-                        <label for="netip.ignoreSetTime">Ignore set time</label>
-                        <div class="form-check-inline">
-                            <input type="checkbox" id="netip.ignoreSetTime" class="form-check-input">
-                        </div>
+                        <label for="netip.enabled">Enable NETIP protocol support</label> <div class="form-check-inline"><input type="checkbox" id="netip.enabled" class="form-check-input"></div>
+                        <label for="netip.user">NETIP username</label> <input type="text" id="netip.user">
+                        <label for="netip.password">Hash of password</label> <input type="text" id="netip.password">
+                        <label for="netip.port">NETIP port</label> <input type="number" id="netip.port" min="1" max="65535" step="1">
+                        <label for="netip.snapshots">NETIP snapshots</label> <div class="form-check-inline"><input type="checkbox" id="netip.snapshots" class="form-check-input"></div>
+                        <label for="netip.ignoreSetTime">Ignore set time</label> <div class="form-check-inline"><input type="checkbox" id="netip.ignoreSetTime" class="form-check-input"></div>
                     </div>
                 </div>
 
@@ -968,6 +582,23 @@
                 <button id="kill-all-btn-modal" style="background-color: var(--danger-color); color: white;" data-i18n-key="settings_kill_all"></button>
             </div>
             <div id="settings-toast" class="toast-notification"></div>
+        </div>
+    </div>
+    
+    <div id="user-management-modal" class="modal-backdrop hidden">
+        <div class="modal-content" style="width: 600px;">
+            <span id="user-management-close-btn" class="modal-close-btn">×</span>
+            <h2 data-i18n-key="user_management_title"></h2>
+            <div class="modal-body">
+                <div id="user-list-container" style="min-height: 200px; max-height: 50vh; overflow-y: auto; border: 1px solid #eee; margin-top: 15px;">
+                    <ul id="user-list" style="list-style: none; padding: 0; margin: 0;">
+                        <!-- Пользователи будут добавлены сюда динамически -->
+                    </ul>
+                </div>
+                <div class="form-buttons" style="justify-content: flex-start; margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee;">
+                    <button id="open-add-user-modal-btn" data-i18n-key="add_user"></button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -986,36 +617,50 @@
         </div>
     </div>
     
-    <div id="archive-modal" class="modal-backdrop hidden">
-        <div class="modal-content archive">
-            <span id="archive-modal-close-btn" class="modal-close-btn">×</span>
-            <div class="archive-container">
-                <div class="archive-list-panel">
-                    <div class="archive-list-header">
-                        <h3 data-i18n-key="archive_title"></h3>
-                        <button id="archive-refresh-btn" data-i18n-tooltip="archive_refresh_tooltip"><i class="material-icons">refresh</i></button>
-                    </div>
-                    <ul id="archive-list">
-                    </ul>
-                </div>
-                <div class="archive-player-panel">
-                    <video id="archive-video-player" controls style="display: none;"></video>
-                    <div id="archive-player-placeholder" data-i18n-key="archive_placeholder"></div>
-                    <div class="archive-player-footer">
-                        <button id="archive-delete-btn" disabled data-i18n-key="archive_delete"></button>
-                        <button id="archive-show-folder-btn" disabled data-i18n-key="archive_show_in_folder"></button>
-                    </div>
+    <div id="discover-modal" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <span id="discover-modal-close-btn" class="modal-close-btn">×</span>
+            <h2 data-i18n-key="discover_modal_title"></h2>
+            <div id="discover-list-container" style="min-height: 200px; max-height: 40vh; overflow-y: auto; border: 1px solid #ccc; border-radius: 4px; margin-top: 15px;">
+                <ul id="discover-list" style="list-style: none; padding: 0; margin: 0;">
+                </ul>
+            </div>
+            <div class="form-buttons">
+                <button id="add-discovered-btn" data-i18n-key="add_selected_camera" disabled></button>
+                <button id="rediscover-btn" data-i18n-key="search_again"></button>
+            </div>
+        </div>
+    </div>
+
+    <div id="add-user-modal" class="modal-backdrop hidden">
+        <div class="modal-content" style="width: 400px;">
+            <span id="add-user-close-btn" class="modal-close-btn">×</span>
+            <h2 data-i18n-key="add_user_title"></h2>
+            <div class="form-grid simple" style="grid-template-columns: 100px 1fr; padding-top: 10px;">
+                <b data-i18n-key="login"></b> <input type="text" id="add-user-username" autocomplete="off">
+                <b data-i18n-key="password"></b> <input type="password" id="add-user-password" autocomplete="new-password">
+                <b data-i18n-key="user_role"></b> 
+                <select id="add-user-role">
+                    <option value="operator" data-i18n-key="role_operator"></option>
+                    <option value="admin" data-i18n-key="role_admin"></option>
+                </select>
+                <b></b>
+                <div class="form-buttons">
+                    <button id="save-user-btn" data-i18n-key="save"></button>
+                    <button id="cancel-user-btn" style="background-color: #6c757d;" data-i18n-key="cancel"></button>
                 </div>
             </div>
         </div>
     </div>
-    
+
     <script src="jsmpeg.min.js"></script>
     <script src="./js/i18n.js"></script>
+    <script src="./js/state-manager.js"></script>
     <script src="./js/modal-handler.js"></script>
     <script src="./js/camera-list.js"></script>
     <script src="./js/grid-manager.js"></script>
     <script src="./js/archive-manager.js"></script>
+    <script src="./js/window-controls.js"></script>
     <script src="./js/renderer.js"></script>
 </body>
 </html>

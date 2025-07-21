@@ -58,6 +58,7 @@
   "no_free_ports": "Не удалось найти свободный порт.",
 
   "settings_tab_general": "Общие",
+  "settings_tab_users": "Пользователи",
   "settings_tab_system": "System",
   "settings_tab_isp": "ISP",
   "settings_tab_image": "Image",
@@ -95,6 +96,10 @@
   "archive_no_recordings": "Нет записей.",
   "confirm_delete_recording": "Вы уверены, что хотите удалить '{{filename}}'?",
   "error_deleting": "Ошибка удаления файла",
+  "archive_export_clip": "Экспорт клипа",
+  "archive_export_single_file_error": "Выделение должно находиться в пределах одного файла записи.",
+  "archive_export_success": "Клип успешно экспортирован.",
+  "archive_export_error": "Ошибка экспорта клипа",
   
   "update_checking": "Проверка...",
   "update_check_prompt": "Нажмите кнопку для проверки...",
@@ -110,5 +115,31 @@
   "update_header": "Обновление приложения",
   "update_status_label": "Текущий статус",
   "update_action_label": "Действие",
-  "update_check_button": "Проверить обновления"
+  "update_check_button": "Проверить обновления",
+  
+  "discover_cameras_tooltip": "Найти камеры в сети (ONVIF)",
+  "discover_modal_title": "Найденные камеры",
+  "add_selected_camera": "Добавить выбранную",
+  "search_again": "Искать снова",
+  "searching_for_cameras": "Поиск камер в вашей сети...",
+  "no_cameras_found": "Совместимых камер не найдено. Убедитесь, что они находятся в той же сети и поддерживают ONVIF.",
+  
+  "login_prompt": "Пожалуйста, войдите для продолжения",
+  "login_btn": "Войти",
+  "invalid_credentials": "Неверное имя пользователя или пароль.",
+  "logout": "Выйти",
+  "logout_tooltip": "Выйти из текущей сессии",
+  
+  "user_management_tooltip": "Управление пользователями",
+  "user_management_title": "Управление пользователями",
+  "add_user": "Добавить пользователя",
+  "add_user_title": "Добавить нового пользователя",
+  "user_role": "Роль",
+  "role_operator": "Оператор",
+  "role_admin": "Администратор",
+  "change_password": "Сменить пароль",
+  "enter_new_password_for": "Введите новый пароль для пользователя '{{username}}':",
+  "password_changed_success": "Пароль успешно изменен.",
+  "confirm_delete_user": "Вы уверены, что хотите удалить пользователя '{{username}}'?",
+  "username_and_password_required": "Имя пользователя и пароль обязательны."
 }

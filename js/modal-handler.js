@@ -1,18 +1,23 @@
-// js/modal-handler.js (ИСПРАВЛЕННАЯ ВЕРСИЯ)
+// js/modal-handler.js (Финальная версия с разделением модальных окон)
 
 (function(window) {
     window.AppModules = window.AppModules || {};
 
     AppModules.createModalHandler = function(App) {
+        const stateManager = App.stateManager;
+
+        // --- Элементы для разных модальных окон ---
         const addModal = document.getElementById('add-camera-modal');
         const saveCameraBtn = document.getElementById('save-camera-btn');
         const cancelAddBtn = document.getElementById('cancel-camera-btn');
         const addModalCloseBtn = document.getElementById('add-modal-close-btn');
+
         const addGroupModal = document.getElementById('add-group-modal');
         const newGroupNameInput = document.getElementById('new-group-name');
         const saveGroupBtn = document.getElementById('save-group-btn');
         const cancelGroupBtn = document.getElementById('cancel-group-btn');
         const addGroupModalCloseBtn = document.getElementById('add-group-modal-close-btn');
+
         const settingsModal = document.getElementById('settings-modal');
         const settingsModalCloseBtn = document.getElementById('settings-modal-close-btn');
         const saveSettingsBtn = document.getElementById('save-settings-btn');
@@ -25,15 +30,45 @@
         const hwAccelSelect = document.getElementById('app-settings-hw-accel');
         const checkForUpdatesBtn = document.getElementById('check-for-updates-btn');
         const updateStatusText = document.getElementById('update-status-text');
+
+        const discoverBtn = document.getElementById('discover-btn');
+        const discoverModal = document.getElementById('discover-modal');
+        const discoverModalCloseBtn = document.getElementById('discover-modal-close-btn');
+        const discoverList = document.getElementById('discover-list');
+        const addDiscoveredBtn = document.getElementById('add-discovered-btn');
+        const rediscoverBtn = document.getElementById('rediscover-btn');
+        
+        // VVV НОВОЕ: Элементы для модального окна управления пользователями VVV
+        const userManagementModal = document.getElementById('user-management-modal');
+        const userManagementCloseBtn = document.getElementById('user-management-close-btn');
+        const userListEl = document.getElementById('user-list');
+        const openAddUserModalBtn = document.getElementById('open-add-user-modal-btn');
+        
+        const addUserModal = document.getElementById('add-user-modal');
+        const addUserCloseBtn = document.getElementById('add-user-close-btn');
+        const saveUserBtn = document.getElementById('save-user-btn');
+        const cancelUserBtn = document.getElementById('cancel-user-btn');
         
         let toastTimeout;
         let editingCameraId = null;
         let settingsCameraId = null;
         let rangeSyncFunctions = {};
+        let selectedDiscoveredDevice = null;
+        let isDiscovering = false;
 
         const openModal = (modalElement) => modalElement.classList.remove('hidden');
-        const closeModal = (modalElement) => modalElement.classList.add('hidden');
-        function showToast(message, isError = false, duration = 3000) { if (toastTimeout) clearTimeout(toastTimeout); settingsToast.textContent = message; settingsToast.className = 'toast-notification'; if (isError) settingsToast.classList.add('error'); settingsToast.classList.add('show'); toastTimeout = setTimeout(() => { settingsToast.classList.remove('show'); }, duration); }
+        const closeModal = (modalElement) => {
+            if (modalElement) modalElement.classList.add('hidden');
+        };
+
+        function showToast(message, isError = false, duration = 3000) { 
+            if (toastTimeout) clearTimeout(toastTimeout);
+            settingsToast.textContent = message;
+            settingsToast.className = 'toast-notification';
+            if (isError) settingsToast.classList.add('error');
+            settingsToast.classList.add('show');
+            toastTimeout = setTimeout(() => { settingsToast.classList.remove('show'); }, duration);
+        }
 
         function setupRangeSync(rangeId) {
             const rangeInput = document.getElementById(rangeId);
@@ -51,20 +86,23 @@
             const el = document.getElementById(id);
             if (!el) return;
             if (el.type === 'checkbox') { el.checked = !!value; }
-            else if (el.type === 'range') { const syncFunc = rangeSyncFunctions[id]; if (syncFunc) { syncFunc(value); } else { el.value = value; } }
+            else if (el.type === 'range') {
+                const syncFunc = rangeSyncFunctions[id];
+                if (syncFunc) { syncFunc(value); } else { el.value = value; }
+            }
             else { el.value = value; }
         }
 
         function openAddModal(cameraToEdit = null) {
-            editingCameraId = cameraToEdit && cameraToEdit.id ? cameraToEdit.id : null;
+            editingCameraId = cameraToEdit ? cameraToEdit.id : null;
             const modalTitle = document.getElementById('add-modal-title');
             const camera = cameraToEdit || {};
-            modalTitle.textContent = editingCameraId ? App.t('edit_camera_title') : App.t('add_camera_title');
+            modalTitle.textContent = editingCameraId ? App.i18n.t('edit_camera_title') : App.i18n.t('add_camera_title');
             document.getElementById('new-cam-name').value = camera.name || '';
             document.getElementById('new-cam-ip').value = camera.ip || '';
             document.getElementById('new-cam-port').value = camera.port || '554';
             document.getElementById('new-cam-user').value = camera.username || 'root';
-            document.getElementById('new-cam-pass').value = camera.password || '';
+            document.getElementById('new-cam-pass').value = ''; 
             document.getElementById('new-cam-stream-path0').value = camera.streamPath0 !== undefined ? camera.streamPath0 : '/stream0';
             document.getElementById('new-cam-stream-path1').value = camera.streamPath1 !== undefined ? camera.streamPath1 : '/stream1';
             openModal(addModal);
@@ -81,35 +119,57 @@
             settingsCameraId = cameraId;
             rangeSyncFunctions = {};
             const isGeneralSettings = !cameraId;
-            const camera = isGeneralSettings ? null : App.cameras.find(c => c.id === cameraId);
-            if (!isGeneralSettings && !camera) return;
-            document.getElementById('settings-modal-title').textContent = isGeneralSettings ? App.t('general_settings_title') : `${App.t('camera_settings_title_prefix')}: ${camera.name}`;
+            const camera = isGeneralSettings ? null : stateManager.state.cameras.find(c => c.id === cameraId);
+
+            document.getElementById('settings-modal-title').textContent = isGeneralSettings ? App.i18n.t('general_settings_title') : `${App.i18n.t('camera_settings_title_prefix')}: ${camera.name}`;
             const tabsContainer = settingsModal.querySelector('.tabs');
             const allTabs = tabsContainer.querySelectorAll('.tab-button');
             const allContent = settingsModal.querySelectorAll('.tab-content');
-            allTabs.forEach(btn => { const isGeneralTab = btn.dataset.tab === 'tab-general'; btn.style.display = isGeneralSettings ? (isGeneralTab ? 'flex' : 'none') : (isGeneralTab ? 'none' : 'flex'); });
+            
+            allTabs.forEach(btn => {
+                const tabName = btn.dataset.tab;
+                const isGeneralTab = tabName === 'tab-general';
+                // --- ИЗМЕНЕНИЕ: Логика для вкладки пользователей удалена отсюда ---
+                const isCameraTab = !isGeneralTab;
+
+                if (isGeneralSettings) {
+                    btn.style.display = isGeneralTab ? 'flex' : 'none';
+                } else {
+                    btn.style.display = isCameraTab ? 'flex' : 'none';
+                }
+            });
+            
             allContent.forEach(el => el.classList.remove('active'));
             allTabs.forEach(el => el.classList.remove('active'));
+            
             if (isGeneralSettings) {
                 tabsContainer.querySelector('[data-tab="tab-general"]').classList.add('active');
                 document.getElementById('tab-general').classList.add('active');
             } else {
+                if (!camera) return;
                 tabsContainer.querySelector('[data-tab="tab-system"]').classList.add('active');
                 document.getElementById('tab-system').classList.add('active');
             }
-            recordingsPathInput.value = App.appSettings.recordingsPath || '';
-            languageSelect.value = App.appSettings.language || 'en';
-            hwAccelSelect.value = App.appSettings.hwAccel || 'auto';
+
+            const { appSettings } = stateManager.state;
+            recordingsPathInput.value = appSettings.recordingsPath || '';
+            languageSelect.value = appSettings.language || 'en';
+            hwAccelSelect.value = appSettings.hwAccel || 'auto';
+            
             restartMajesticBtn.style.display = isGeneralSettings ? 'none' : 'inline-flex';
+            killAllBtnModal.style.display = isGeneralSettings ? 'inline-flex' : 'none';
+
             openModal(settingsModal);
+
             if (isGeneralSettings) {
                 saveSettingsBtn.disabled = false;
-                saveSettingsBtn.textContent = App.t('save');
+                saveSettingsBtn.textContent = App.i18n.t('save');
                 return;
             }
+
             ['image.contrast', 'image.hue', 'image.saturation', 'image.luminance', 'jpeg.qfactor', 'jpeg.fps', 'audio.volume', 'audio.outputVolume', 'nightMode.monitorDelay', 'records.maxUsage'].forEach(setupRangeSync);
             saveSettingsBtn.disabled = true;
-            saveSettingsBtn.textContent = App.t('loading_text');
+            saveSettingsBtn.textContent = App.i18n.t('loading_text');
             try {
                 const settings = await window.api.getCameraSettings(camera);
                 if (settings && !settings.error) {
@@ -121,82 +181,84 @@
                         }
                     }
                 } else {
-                    throw new Error(settings?.error || App.t('unknown_error'));
+                    throw new Error(settings?.error || App.i18n.t('unknown_error'));
                 }
             } catch (e) {
-                alert(`${App.t('loading_settings_error')}: ${e.message}`);
+                alert(`${App.i18n.t('loading_settings_error')}: ${e.message}`);
                 closeModal(settingsModal);
             } finally {
                 saveSettingsBtn.disabled = false;
-                saveSettingsBtn.textContent = App.t('save');
+                saveSettingsBtn.textContent = App.i18n.t('save');
             }
         }
         
-        // --- ИСПРАВЛЕНИЕ 4: Упрощенная и более надежная логика сохранения ---
+        // VVV НОВАЯ ФУНКЦИЯ VVV
+        async function openUserManagementModal() {
+            openModal(userManagementModal);
+            await renderUserList();
+        }
+
         async function saveCamera() {
-            const cameraData = {
+            const cameraDataToUpdate = {
                 name: document.getElementById('new-cam-name').value.trim(),
                 ip: document.getElementById('new-cam-ip').value.trim(),
                 port: document.getElementById('new-cam-port').value.trim(),
                 username: document.getElementById('new-cam-user').value.trim(),
-                password: document.getElementById('new-cam-pass').value,
                 streamPath0: document.getElementById('new-cam-stream-path0').value.trim(),
                 streamPath1: document.getElementById('new-cam-stream-path1').value.trim()
             };
+            
+            const password = document.getElementById('new-cam-pass').value;
+            if (password) {
+                cameraDataToUpdate.password = password;
+            }
 
-            if (!cameraData.name || !cameraData.ip) {
-                alert(App.t('name_and_ip_required'));
+            if (!cameraDataToUpdate.name || !cameraDataToUpdate.ip) {
+                alert(App.i18n.t('name_and_ip_required'));
                 return;
             }
-
-            let needsRestart = false;
-
-            if (editingCameraId) {
-                const index = App.cameras.findIndex(c => c.id === editingCameraId);
-                const oldCam = { ...App.cameras[index] };
-                
-                // Проверяем, изменились ли критичные для потока данные
-                needsRestart = oldCam.ip !== cameraData.ip ||
-                               oldCam.port !== cameraData.port ||
-                               oldCam.username !== cameraData.username ||
-                               oldCam.password !== cameraData.password ||
-                               oldCam.streamPath0 !== cameraData.streamPath0 ||
-                               oldCam.streamPath1 !== cameraData.streamPath1;
-
-                // Обновляем данные камеры
-                App.cameras[index] = { ...oldCam, ...cameraData };
-                
-            } else {
-                // Добавляем новую камеру
-                App.cameras.push({ id: Date.now(), groupId: null, ...cameraData });
-            }
-
-            await App.saveConfiguration();
-            closeModal(addModal);
             
-            // Всегда обновляем список камер
-            App.cameraList.render();
-
-            // Перезапускаем поток только если это было редактирование и изменились важные параметры
-            if (needsRestart && editingCameraId) {
-                await App.gridManager.restartStreamsForCamera(editingCameraId);
+            if (editingCameraId) {
+                const oldCam = stateManager.state.cameras.find(c => c.id === editingCameraId);
+                const needsRestart = oldCam.ip !== cameraDataToUpdate.ip ||
+                                   oldCam.port !== cameraDataToUpdate.port ||
+                                   oldCam.username !== cameraDataToUpdate.username ||
+                                   (cameraDataToUpdate.password) ||
+                                   oldCam.streamPath0 !== cameraDataToUpdate.streamPath0 ||
+                                   oldCam.streamPath1 !== cameraDataToUpdate.streamPath1;
+                
+                stateManager.updateCamera({ id: editingCameraId, ...cameraDataToUpdate });
+                
+                if (needsRestart) {
+                    setTimeout(() => App.gridManager.restartStreamsForCamera(editingCameraId), 100);
+                }
+            } else {
+                stateManager.addCamera(cameraDataToUpdate);
             }
+
+            closeModal(addModal);
         }
 
-        async function saveNewGroup() { const name = newGroupNameInput.value.trim(); if (!name) { alert(App.t('group_name_empty_error')); return; } const newGroup = { id: Date.now(), name: name }; App.groups.push(newGroup); await App.saveConfiguration(); closeModal(addGroupModal); App.cameraList.render(); }
+        async function saveNewGroup() { 
+            const name = newGroupNameInput.value.trim(); 
+            if (!name) { alert(App.i18n.t('group_name_empty_error')); return; } 
+            stateManager.addGroup({ name });
+            closeModal(addGroupModal);
+        }
         
         async function saveSettings() {
             saveSettingsBtn.disabled = true;
-            saveSettingsBtn.textContent = App.t('saving_text');
+            saveSettingsBtn.textContent = App.i18n.t('saving_text');
             if (settingsCameraId === null) {
-                App.appSettings.recordingsPath = recordingsPathInput.value.trim();
-                App.appSettings.hwAccel = hwAccelSelect.value;
-                App.appSettings.language = languageSelect.value;
-                await window.api.saveAppSettings(App.appSettings);
-                showToast(App.t('app_settings_saved_success'));
+                stateManager.setAppSettings({
+                    recordingsPath: recordingsPathInput.value.trim(),
+                    hwAccel: hwAccelSelect.value,
+                    language: languageSelect.value,
+                });
+                showToast(App.i18n.t('app_settings_saved_success'));
             } else {
-                const camera = App.cameras.find(c => c.id === settingsCameraId);
-                if (!camera) { saveSettingsBtn.disabled = false; saveSettingsBtn.textContent = App.t('save'); return; }
+                const camera = stateManager.state.cameras.find(c => c.id === settingsCameraId);
+                if (!camera) { saveSettingsBtn.disabled = false; saveSettingsBtn.textContent = App.i18n.t('save'); return; }
                 const settingsDataToSend = {};
                 const allSettingElements = settingsModal.querySelectorAll('[id*="."]');
                 allSettingElements.forEach(el => {
@@ -214,52 +276,268 @@
                 });
                 if (Object.keys(settingsDataToSend).length > 0) {
                     const result = await window.api.setCameraSettings({ credentials: camera, settingsData: settingsDataToSend });
-                    if (result.success) { showToast(App.t('camera_settings_saved_success')); }
-                    else { showToast(`${App.t('save_settings_error')}: ${result.error}`, true, 5000); }
+                    if (result.success) { showToast(App.i18n.t('camera_settings_saved_success')); }
+                    else { showToast(`${App.i18n.t('save_settings_error')}: ${result.error}`, true, 5000); }
                 } else {
-                    showToast(App.t('app_settings_saved_success'), false);
+                    showToast(App.i18n.t('app_settings_saved_success'), false);
                 }
             }
             saveSettingsBtn.disabled = false;
-            saveSettingsBtn.textContent = App.t('save');
+            saveSettingsBtn.textContent = App.i18n.t('save');
         }
 
-        async function restartMajestic() { if (!settingsCameraId) return; const camera = App.cameras.find(c => c.id === settingsCameraId); if (!camera) return; const result = await window.api.restartMajestic(camera); if (result.success) { showToast(App.t('restart_command_sent')); } else { showToast(`${App.t('restart_error')}: ${result.error}`, true); } }
+        async function restartMajestic() { 
+            if (!settingsCameraId) return; 
+            const camera = stateManager.state.cameras.find(c => c.id === settingsCameraId); 
+            if (!camera) return; 
+            const result = await window.api.restartMajestic(camera); 
+            if (result.success) { showToast(App.i18n.t('restart_command_sent')); } 
+            else { showToast(`${App.i18n.t('restart_error')}: ${result.error}`, true); } 
+        }
+
+        async function startDiscovery() {
+            if (isDiscovering) return;
+            isDiscovering = true;
+            
+            openModal(discoverModal);
+            discoverList.innerHTML = `<li style="padding: 10px; color: #666;">${App.i18n.t('searching_for_cameras')}</li>`;
+            addDiscoveredBtn.disabled = true;
+            rediscoverBtn.disabled = true;
+            selectedDiscoveredDevice = null;
+            
+            const result = await window.api.discoverOnvifDevices();
+            isDiscovering = false;
+            rediscoverBtn.disabled = false;
+            
+            if (result.success && discoverList.children.length === 1 && discoverList.children[0].textContent.includes(App.i18n.t('searching_for_cameras'))) {
+                 discoverList.innerHTML = `<li style="padding: 10px; color: #666;">${App.i18n.t('no_cameras_found')}</li>`;
+            } else if (!result.success) {
+                 discoverList.innerHTML = `<li style="padding: 10px; color: var(--danger-color);">Error: ${result.error}</li>`;
+            }
+        }
+
+        function addDiscoveredCamera() {
+            if (!selectedDiscoveredDevice) return;
+            
+            const { ip, name, rtspUri } = selectedDiscoveredDevice;
+            let streamPath = '/stream0';
+            if (rtspUri) {
+                try {
+                    const match = rtspUri.match(/rtsp:\/\/[^/]+(\/.*)/);
+                    if (match && match[1]) {
+                        streamPath = match[1];
+                    }
+                } catch(e) { console.error("Could not parse RTSP URI:", rtspUri, e); }
+            }
+
+            const cameraToEdit = {
+                name: name,
+                ip: ip,
+                streamPath0: streamPath,
+                streamPath1: streamPath.replace('0', '1')
+            };
+
+            closeModal(discoverModal);
+            openAddModal(cameraToEdit);
+        }
+
+        async function renderUserList() {
+            userListEl.innerHTML = `<li>${App.t('loading_text')}</li>`;
+            const result = await window.api.getUsers();
+            userListEl.innerHTML = '';
+
+            if (result.success) {
+                result.users.forEach(user => {
+                    const li = document.createElement('li');
+                    li.style.cssText = "display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee;";
+                    li.innerHTML = `
+                        <div>
+                            <strong>${user.username}</strong>
+                            <small style="color: #666; margin-left: 10px;">(${App.t('role_' + user.role)})</small>
+                        </div>
+                        <div>
+                            <button class="change-pass-btn" style="margin-right: 10px;">${App.t('change_password')}</button>
+                            <button class="delete-user-btn" style="color: var(--danger-color);">${App.t('context_delete')}</button>
+                        </div>
+                    `;
+                    
+                    li.querySelector('.change-pass-btn').addEventListener('click', async () => {
+                        const newPassword = prompt(App.t('enter_new_password_for', { username: user.username }));
+                        if (newPassword && newPassword.trim()) {
+                            const updateResult = await window.api.updateUserPassword({ username: user.username, password: newPassword });
+                            if (updateResult.success) {
+                                alert(App.t('password_changed_success'));
+                            } else {
+                                alert(`${App.t('error')}: ${updateResult.error}`);
+                            }
+                        }
+                    });
+
+                    li.querySelector('.delete-user-btn').addEventListener('click', async () => {
+                        if (confirm(App.t('confirm_delete_user', { username: user.username }))) {
+                            const deleteResult = await window.api.deleteUser({ username: user.username });
+                             if (deleteResult.success) {
+                                await renderUserList();
+                            } else {
+                                alert(`${App.t('error')}: ${deleteResult.error}`);
+                            }
+                        }
+                    });
+
+                    userListEl.appendChild(li);
+                });
+            } else {
+                userListEl.innerHTML = `<li>Error: ${result.error}</li>`;
+            }
+        }
+        
+        function openAddUserModal() {
+            document.getElementById('add-user-username').value = '';
+            document.getElementById('add-user-password').value = '';
+            document.getElementById('add-user-role').value = 'operator';
+            openModal(addUserModal);
+            document.getElementById('add-user-username').focus();
+        }
+
+        async function saveNewUser() {
+            const username = document.getElementById('add-user-username').value.trim();
+            const password = document.getElementById('add-user-password').value;
+            const role = document.getElementById('add-user-role').value;
+
+            if (!username || !password) {
+                alert(App.t('username_and_password_required'));
+                return;
+            }
+
+            const result = await window.api.addUser({ username, password, role });
+            if (result.success) {
+                closeModal(addUserModal);
+                await renderUserList();
+            } else {
+                alert(`${App.t('error')}: ${result.error}`);
+            }
+        }
         
         function init() {
+            window.api.onOnvifDeviceFound((device) => {
+                if (discoverList.children.length > 0 && discoverList.children[0].textContent.includes(App.i18n.t('searching_for_cameras'))) {
+                    discoverList.innerHTML = '';
+                }
+
+                const existingItem = Array.from(discoverList.children).find(li => li.innerHTML.includes(device.ip));
+                if (existingItem) {
+                    return;
+                }
+
+                const li = document.createElement('li');
+                li.style.padding = '10px';
+                li.style.cursor = 'pointer';
+                li.style.borderBottom = '1px solid #eee';
+                li.innerHTML = `<strong>${device.name}</strong><br><small>${device.ip}</small>`;
+                
+                li.addEventListener('click', () => {
+                    discoverList.querySelectorAll('li').forEach(el => el.style.backgroundColor = '');
+                    li.style.backgroundColor = '#d4e6f1';
+                    selectedDiscoveredDevice = device;
+                    addDiscoveredBtn.disabled = false;
+                });
+                discoverList.appendChild(li);
+            });
+
             const addCameraSidebarBtn = document.getElementById('add-camera-sidebar-btn');
             const addGroupBtn = document.getElementById('add-group-btn');
             const generalSettingsBtn = document.getElementById('general-settings-btn');
+            // VVV НОВОЕ VVV
+            const userManagementBtn = document.getElementById('user-management-btn');
+            
             addCameraSidebarBtn.addEventListener('click', () => openAddModal());
             saveCameraBtn.addEventListener('click', saveCamera);
             addModalCloseBtn.addEventListener('click', () => closeModal(addModal));
             cancelAddBtn.addEventListener('click', () => closeModal(addModal));
             addModal.addEventListener('click', (e) => { if (e.target === addModal) closeModal(addModal); });
+            
             addGroupBtn.addEventListener('click', openAddGroupModal);
             saveGroupBtn.addEventListener('click', saveNewGroup);
             cancelGroupBtn.addEventListener('click', () => closeModal(addGroupModal));
             addGroupModalCloseBtn.addEventListener('click', () => closeModal(addGroupModal));
             addGroupModal.addEventListener('click', (e) => { if (e.target === addGroupModal) closeModal(addGroupModal); });
+            
             generalSettingsBtn.addEventListener('click', () => openSettingsModal(null));
             settingsModalCloseBtn.addEventListener('click', () => closeModal(settingsModal));
             restartMajesticBtn.addEventListener('click', restartMajestic);
-            killAllBtnModal.addEventListener('click', async () => { if (confirm(App.t('kill_all_confirm'))) { const result = await window.api.killAllFfmpeg(); alert(result.message); window.location.reload(); } });
+            killAllBtnModal.addEventListener('click', async () => { if (confirm(App.i18n.t('kill_all_confirm'))) { const result = await window.api.killAllFfmpeg(); alert(result.message); window.location.reload(); } });
             saveSettingsBtn.addEventListener('click', saveSettings);
+            
+            discoverBtn.addEventListener('click', startDiscovery);
+            rediscoverBtn.addEventListener('click', startDiscovery);
+            discoverModalCloseBtn.addEventListener('click', () => closeModal(discoverModal));
+            discoverModal.addEventListener('click', (e) => { if (e.target === discoverModal) closeModal(discoverModal); });
+            addDiscoveredBtn.addEventListener('click', addDiscoveredCamera);
+
+            // VVV НОВОЕ: Обработчики для модального окна управления пользователями VVV
+            userManagementBtn.addEventListener('click', openUserManagementModal);
+            userManagementCloseBtn.addEventListener('click', () => closeModal(userManagementModal));
+            userManagementModal.addEventListener('click', (e) => { if (e.target === userManagementModal) closeModal(userManagementModal); });
+            openAddUserModalBtn.addEventListener('click', openAddUserModal);
+            
+            addUserCloseBtn.addEventListener('click', () => closeModal(addUserModal));
+            addUserModal.addEventListener('click', (e) => { if (e.target === addUserModal) closeModal(addUserModal); });
+            saveUserBtn.addEventListener('click', saveNewUser);
+            cancelUserBtn.addEventListener('click', () => closeModal(addUserModal));
+
             languageSelect.addEventListener('change', async (e) => {
                 const newLang = e.target.value;
-                App.appSettings.language = newLang;
-                await window.api.saveAppSettings(App.appSettings);
+                stateManager.setAppSettings({ language: newLang });
                 await App.i18n.setLanguage(newLang);
-                if (!addModal.classList.contains('hidden')) { openAddModal(editingCameraId ? App.cameras.find(c => c.id === editingCameraId) : null); }
+                if (!addModal.classList.contains('hidden')) { openAddModal(editingCameraId ? stateManager.state.cameras.find(c => c.id === editingCameraId) : null); }
                 if (!settingsModal.classList.contains('hidden')) { openSettingsModal(settingsCameraId); }
-                if (!addGroupModal.classList.contains('hidden')) { document.getElementById('add-group-modal-title').textContent = App.t('create_group_title'); }
-                showToast(App.t('app_settings_saved_success'));
+                if (!addGroupModal.classList.contains('hidden')) { document.getElementById('add-group-modal-title').textContent = App.i18n.t('create_group_title'); }
+                if (!discoverModal.classList.contains('hidden')) {
+                     document.querySelector('#discover-modal h2').textContent = App.i18n.t('discover_modal_title');
+                     document.querySelector('#add-discovered-btn').textContent = App.i18n.t('add_selected_camera');
+                     document.querySelector('#rediscover-btn').textContent = App.i18n.t('search_again');
+                }
+                if (!userManagementModal.classList.contains('hidden')) {
+                    document.querySelector('#user-management-modal h2').textContent = App.t('user_management_title');
+                }
+                if (!addUserModal.classList.contains('hidden')) {
+                    document.querySelector('#add-user-modal h2').textContent = App.t('add_user_title');
+                }
+                showToast(App.i18n.t('app_settings_saved_success'));
             });
-            selectRecPathBtn.addEventListener('click', async () => { const result = await window.api.selectDirectory(); if (!result.canceled) { recordingsPathInput.value = result.path; } });
-            settingsModal.querySelectorAll('.tab-button').forEach(button => { button.addEventListener('click', () => { settingsModal.querySelectorAll('.tab-button, .tab-content').forEach(el => el.classList.remove('active')); button.classList.add('active'); const tabContent = document.getElementById(button.dataset.tab); if (tabContent) tabContent.classList.add('active'); }); });
-            checkForUpdatesBtn.addEventListener('click', () => { updateStatusText.textContent = App.t('update_checking'); checkForUpdatesBtn.disabled = true; window.api.checkForUpdates(); });
-            window.api.onUpdateStatus(({ status, message }) => { checkForUpdatesBtn.disabled = false; let version = message.includes(' ') ? message.split(' ').pop() : ''; switch (status) { case 'available': updateStatusText.textContent = App.t('update_available', { version }); updateStatusText.style.color = '#ffc107'; break; case 'downloading': updateStatusText.textContent = App.t('update_downloading', { percent: message.match(/\d+/)[0] }); updateStatusText.style.color = '#17a2b8'; checkForUpdatesBtn.disabled = true; break; case 'downloaded': updateStatusText.textContent = App.t('update_downloaded'); updateStatusText.style.color = '#28a745'; break; case 'error': updateStatusText.textContent = App.t('update_error', { message }); updateStatusText.style.color = '#dc3545'; break; case 'latest': updateStatusText.textContent = App.t('update_latest'); updateStatusText.style.color = 'green'; break; default: updateStatusText.textContent = App.t('update_check_prompt'); updateStatusText.style.color = 'inherit'; } });
-            window.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeModal(addModal); closeModal(settingsModal); closeModal(addGroupModal); } });
+            selectRecPathBtn.addEventListener('click', async () => { 
+                const result = await window.api.selectDirectory(); 
+                if (!result.canceled) { 
+                    recordingsPathInput.value = result.path; 
+                    stateManager.setAppSettings({ recordingsPath: result.path });
+                } 
+            });
+            
+            // --- ИЗМЕНЕНИЕ: Упрощенная логика для вкладок настроек ---
+            settingsModal.querySelectorAll('.tab-button').forEach(button => { 
+                button.addEventListener('click', () => { 
+                    settingsModal.querySelectorAll('.tab-button, .tab-content').forEach(el => el.classList.remove('active')); 
+                    button.classList.add('active'); 
+                    const tabContent = document.getElementById(button.dataset.tab); 
+                    if (tabContent) {
+                        tabContent.classList.add('active');
+                    } 
+                }); 
+            });
+
+            checkForUpdatesBtn.addEventListener('click', () => { updateStatusText.textContent = App.i18n.t('update_checking'); checkForUpdatesBtn.disabled = true; window.api.checkForUpdates(); });
+            window.api.onUpdateStatus(({ status, message }) => { checkForUpdatesBtn.disabled = false; let version = message.includes(' ') ? message.split(' ').pop() : ''; switch (status) { case 'available': updateStatusText.textContent = App.i18n.t('update_available', { version }); updateStatusText.style.color = '#ffc107'; break; case 'downloading': updateStatusText.textContent = App.i18n.t('update_downloading', { percent: message.match(/\d+/)[0] }); updateStatusText.style.color = '#17a2b8'; checkForUpdatesBtn.disabled = true; break; case 'downloaded': updateStatusText.textContent = App.i18n.t('update_downloaded'); updateStatusText.style.color = '#28a745'; break; case 'error': updateStatusText.textContent = App.i18n.t('update_error', { message }); updateStatusText.style.color = '#dc3545'; break; case 'latest': updateStatusText.textContent = App.i18n.t('update_latest'); updateStatusText.style.color = 'green'; break; default: updateStatusText.textContent = App.i18n.t('update_check_prompt'); updateStatusText.style.color = 'inherit'; } });
+            
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    closeModal(addModal);
+                    closeModal(settingsModal);
+                    closeModal(addGroupModal);
+                    closeModal(discoverModal);
+                    closeModal(addUserModal);
+                    closeModal(userManagementModal); // VVV НОВОЕ VVV
+                }
+            });
         }
 
         return { init, openAddModal, openSettingsModal };

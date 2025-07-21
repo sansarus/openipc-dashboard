@@ -58,6 +58,7 @@
   "no_free_ports": "Failed to find a free port.",
   
   "settings_tab_general": "General",
+  "settings_tab_users": "Users",
   "settings_tab_system": "System",
   "settings_tab_isp": "ISP",
   "settings_tab_image": "Image",
@@ -95,6 +96,10 @@
   "archive_no_recordings": "No recordings.",
   "confirm_delete_recording": "Are you sure you want to delete '{{filename}}'?",
   "error_deleting": "Error deleting file",
+  "archive_export_clip": "Export Clip",
+  "archive_export_single_file_error": "The selection must be within a single recording file.",
+  "archive_export_success": "Clip successfully exported.",
+  "archive_export_error": "Error exporting clip",
   
   "update_checking": "Checking...",
   "update_check_prompt": "Press the button to check for updates...",
@@ -110,5 +115,31 @@
   "update_header": "Application Update",
   "update_status_label": "Current Status",
   "update_action_label": "Action",
-  "update_check_button": "Check for Updates"
+  "update_check_button": "Check for Updates",
+  
+  "discover_cameras_tooltip": "Discover cameras on network (ONVIF)",
+  "discover_modal_title": "Discovered Cameras",
+  "add_selected_camera": "Add Selected",
+  "search_again": "Search Again",
+  "searching_for_cameras": "Searching for cameras on your network...",
+  "no_cameras_found": "No compatible cameras found. Make sure they are on the same network and support ONVIF.",
+
+  "login_prompt": "Please sign in to continue",
+  "login_btn": "Sign In",
+  "invalid_credentials": "Invalid username or password.",
+  "logout": "Logout",
+  "logout_tooltip": "Log out from current session",
+
+  "user_management_tooltip": "User Management",
+  "user_management_title": "User Management",
+  "add_user": "Add User",
+  "add_user_title": "Add New User",
+  "user_role": "Role",
+  "role_operator": "Operator",
+  "role_admin": "Administrator",
+  "change_password": "Change Password",
+  "enter_new_password_for": "Enter new password for user '{{username}}':",
+  "password_changed_success": "Password changed successfully.",
+  "confirm_delete_user": "Are you sure you want to delete user '{{username}}'?",
+  "username_and_password_required": "Username and password are required."
 }
