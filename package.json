@@ -81,7 +81,7 @@
     ],
     "publish": {
       "provider": "github",
-      "owner": "Rinibr",
+      "owner": "sansarus",
       "repo": "openipc-dashboard"
     }
   }
